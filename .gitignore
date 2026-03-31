@@ -1,0 +1,18 @@
+# Ignore all .bin files
+*.bin
+
+# Ignore all .txt files
+*.txt
+
+# Ignore all .png files
+*.png
+
+#Ignore all .out files
+*.out
+
+# Allow Git to scan directories
+!*/
+
+# Re-include specific files anywhere
+!**/Blankf.txt
+!**/Blanks.txt
