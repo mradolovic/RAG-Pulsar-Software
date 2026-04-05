@@ -47,7 +47,7 @@ void snr( int, double dat[]);
 void psnr( int, double dat[]);
 void four(double[],int,int);
 
-main(int argc,char *argv[])
+int main(int argc,char *argv[])
 
 {
 

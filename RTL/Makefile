@@ -1,0 +1,36 @@
+CC      = gcc
+CFLAGS  = -O3 -lm -Wall -Wpedantic -march=native -D_FILE_OFFSET_BITS=64
+SRC_DIR = src
+BIN_DIR = bin
+
+# Detect platform
+ifeq ($(OS), Windows_NT)
+    EXT     = .exe
+    MKDIR   = if not exist $(BIN_DIR) mkdir $(BIN_DIR)
+    CLEAN   = del /Q $(BIN_DIR)\*
+    DEVNULL = nul
+else
+    EXT     = .out
+    MKDIR   = mkdir -p $(BIN_DIR)
+    CLEAN   = rm -f $(BIN_DIR)/*
+    DEVNULL = /dev/null
+endif
+
+TARGETS = $(BIN_DIR)/FileTrim$(EXT) \
+          $(BIN_DIR)/RAFFT22Lg$(EXT) \
+          $(BIN_DIR)/RTLChannel4bin$(EXT) \
+          $(BIN_DIR)/pulsar_det_an$(EXT) \
+          $(BIN_DIR)/rapulsar2con$(EXT)
+
+.PHONY: all clean
+
+all: $(BIN_DIR) $(TARGETS)
+
+$(BIN_DIR):
+	$(MKDIR)
+
+$(BIN_DIR)/%$(EXT): $(SRC_DIR)/%.c
+	$(CC) $< -o $@ $(CFLAGS)
+
+clean:
+	$(CLEAN)
