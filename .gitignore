@@ -10,6 +10,12 @@
 #Ignore all .out files
 *.out
 
+#Ignore all .exe files
+*.exe
+
+#Ignore the __pycache__ in lib
+__pycache__/
+
 # Allow Git to scan directories
 !*/
 
