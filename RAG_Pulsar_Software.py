@@ -5,8 +5,8 @@
 
 import os
 import argparse
-from utils.utils import confirm
-from utils.io import console_program_chain_io
+from lib.funcs import compile_everything, confirm
+from lib.io import console_program_chain_io
 program_arg_map = {}
 program_chain = [] 
 
@@ -19,4 +19,10 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Parser for the stargazer software chain arguments")
     parser.add_argument("--config_file", "-o", help="Path to a config file containing all of the variables neccesary to execute the program chains")
+
+    #Compile everything
+    compile_everything()
+
+    #Now we need to ask the user to input all of the data
+    
 

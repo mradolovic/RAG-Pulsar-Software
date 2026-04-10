@@ -1,6 +1,6 @@
 import itertools
 import json
-from utils import confirm
+from .funcs import confirm
 
 
 def parse_field(raw, dtype, field_name):
