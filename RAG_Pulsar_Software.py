@@ -24,5 +24,6 @@ if __name__ == "__main__":
     compile_everything()
 
     #Now we need to ask the user to input all of the data
+    console_program_chain_io() 
     
 

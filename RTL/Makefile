@@ -1,5 +1,5 @@
 CC      = gcc
-CFLAGS  = -O3 -lm -Wall -Wpedantic -march=native -D_FILE_OFFSET_BITS=64
+CFLAGS  = -O3 -lm -D_FILE_OFFSET_BITS=64
 SRC_DIR = src
 BIN_DIR = bin
 
@@ -20,7 +20,9 @@ TARGETS = $(BIN_DIR)/FileTrim$(EXT) \
           $(BIN_DIR)/RAFFT22Lg$(EXT) \
           $(BIN_DIR)/RTLChannel4bin$(EXT) \
           $(BIN_DIR)/pulsar_det_an$(EXT) \
-          $(BIN_DIR)/rapulsar2con$(EXT)
+          $(BIN_DIR)/rapulsar2con$(EXT) \
+		  $(BIN_DIR)/Blank.txt \
+		  $(BIN_DIR)/Blankf.txt \
 
 .PHONY: all clean
 
@@ -31,6 +33,9 @@ $(BIN_DIR):
 
 $(BIN_DIR)/%$(EXT): $(SRC_DIR)/%.c
 	$(CC) $< -o $@ $(CFLAGS)
+
+$(BIN_DIR)/Blankf.txt $(BIN_DIR)/Blanks.txt: | $(BIN_DIR)
+	$(TOUCH) $@
 
 clean:
 	$(CLEAN)

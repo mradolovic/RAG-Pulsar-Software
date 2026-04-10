@@ -1,8 +1,7 @@
 import itertools
-import json
 from .funcs import confirm
-
-
+from pprint import pprint
+import json
 def parse_field(raw, dtype, field_name):
     """
     Parse and validate a space-separated string of values into a list of dtype.
@@ -56,7 +55,7 @@ def console_program_chain_io():
                 started = True
             elif started:
                 break
-
+        console_program_one_io(program_chain)
     if program_chain_num == 2:
         print("Currently only program chain 1 is supported :( , we are working on it")
 
@@ -115,34 +114,14 @@ def console_program_one_io(program_chain):
         if not confirm(f"That's {total} runs, are you sure?", default=False):
             exit()
 
-    # Optionally save config
-    if confirm("Save these parameters to a config file for reuse?", default=False):
-        save_path = input("Enter path to save config (default: config.json): ").strip()
-        save_config(res, save_path if save_path else "config.json")
-
     # Build combinations
     combinations = [
         dict(zip(keys, combo))
         for combo in itertools.product(*value_lists)
     ]
+    pprint(combinations)
+    print(json.dumps(combinations, indent=4))
     return combinations
 
 
-def save_config(res, path="config.json"):
-    with open(path, "w") as f:
-        json.dump(res, f, indent=4)
-    print(f"Config saved to {path}")
 
-
-def load_config(path):
-    with open(path, "r") as f:
-        data = json.load(f)
-
-    keys = list(data.keys())
-    value_lists = [v if isinstance(v, list) else [v] for v in data.values()]
-
-    combinations = [
-        dict(zip(keys, combo))
-        for combo in itertools.product(*value_lists)
-    ]
-    return combinations
