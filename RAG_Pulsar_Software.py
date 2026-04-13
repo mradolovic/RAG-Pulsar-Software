@@ -19,9 +19,13 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Parser for the stargazer software chain arguments")
     parser.add_argument("--config_file", "-o", help="Path to a config file containing all of the variables neccesary to execute the program chains")
+    parser.add_argument("-compile", "-o", help="If enabled the script will compile/recompile the c programs")
+    
+    parser.parse_args()
 
     #Compile everything
     compile_everything()
+
 
     #Now we need to ask the user to input all of the data
     console_program_chain_io() 

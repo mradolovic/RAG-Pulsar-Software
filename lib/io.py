@@ -1,7 +1,8 @@
 import itertools
 from .funcs import confirm
 from pprint import pprint
-import json
+
+
 def parse_field(raw, dtype, field_name):
     """
     Parse and validate a space-separated string of values into a list of dtype.
@@ -27,7 +28,7 @@ def prompt_field(prompt, dtype):
         raw = input(f"{prompt} (space-separate multiple values): ")
         values, errors = parse_field(raw, dtype, prompt)
         if not errors:
-            return values
+            return len(values) != 1, values
         print(f"Invalid input, please fix the following:")
         for e in errors:
             print(e)
@@ -50,7 +51,12 @@ def console_program_chain_io():
 
         started = False
         for name, prompt in programs:
-            if confirm(prompt, default=True):
+            #The following snippet ensures the default for rtl sdr is false
+            if name == "rtl_sdr":
+                if confirm(prompt, default=False):
+                    program_chain.append(name)
+                    started = True
+            elif confirm(prompt, default=True):
                 program_chain.append(name)
                 started = True
             elif started:
@@ -119,9 +125,7 @@ def console_program_one_io(program_chain):
         dict(zip(keys, combo))
         for combo in itertools.product(*value_lists)
     ]
-    pprint(combinations)
-    print(json.dumps(combinations, indent=4))
-    return combinations
+    return program_chain, combinations
 
 
 
