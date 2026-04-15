@@ -400,9 +400,7 @@ int main(int argc, char *argv[]) {
             fread(&val, 4, 1, fptr); // read 4-byte float from file
             ra = rand();             // ensures any data zeros become finite
             comprs[num][mval] =
-                comprs[num][mval] + ((double)(val * 10)) +
-                ((double)ra) /
-                    100000; // fold into
+                comprs[num][mval] + ((double)(val * 10)); // fold into
                             // bins//comprs[num][mval]=comprs[num][mval]+(double)(val-128)*100.0;
             comprc[num][mval] = comprc[num][mval] + 1; // count bin entries
             cnt1 = cnt1 + 1;
