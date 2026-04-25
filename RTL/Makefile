@@ -17,15 +17,15 @@ else
     DEVNULL = /dev/null
 endif
 
+## added pulsar_det_an_v4 to compile - remove after testing, 20260416, Marko Radolovic
 TARGETS = $(BIN_DIR)/FileTrim$(EXT) \
           $(BIN_DIR)/RAFFT22Lg$(EXT) \
           $(BIN_DIR)/RTLChannel4bin$(EXT) \
           $(BIN_DIR)/pulsar_det_an$(EXT) \
-          #added line to compile v4 version - remove after testing, 20260416, Marko Radolovic
-	  $(BIN_DIR)/pulsar_det_an_v4$(EXT) \
+          $(BIN_DIR)/pulsar_det_an_v4$(EXT) \
           $(BIN_DIR)/rapulsar2con$(EXT) \
-		  $(BIN_DIR)/Blank.txt \
-		  $(BIN_DIR)/Blankf.txt \
+          $(BIN_DIR)/Blank.txt \
+          $(BIN_DIR)/Blankf.txt \
 
 .PHONY: all clean
 

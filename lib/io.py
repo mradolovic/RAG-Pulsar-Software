@@ -57,8 +57,8 @@ def parse_field(raw, dtype, can_vary):
     stripped = raw.strip()
     tokens = stripped.split()
 
-    # Try range: exactly one token with exactly two dashes
-    if len(tokens) == 1 and tokens[0].count("-") == 2:
+    # Try range: exactly one token with exactly two dashes (numeric types only)
+    if dtype is not str and len(tokens) == 1 and tokens[0].count("-") == 2:
         values, errors = parse_range(tokens[0], dtype)
         if errors is not None:  # was recognised as a range attempt
             if not can_vary:
