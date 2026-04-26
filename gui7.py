@@ -399,9 +399,9 @@ canvas.bind_all("<MouseWheel>", on_mousewheel)
 title_frame = tk.Frame(main)
 title_frame.pack(fill="x", pady=(0, 5))
 
-tk.Label(title_frame, text="RAG Pulsar Detection Pipeline",
+tk.Label(title_frame, text="RAG Višnjan Pulsar Detection Pipeline",
          font=("TkDefaultFont", 16, "bold")).pack(side="left")
-tk.Label(title_frame, text="RAG_Pulsar_Software.py",
+tk.Label(title_frame, text="a GUI for running Peter East's pulsar analysis software",
          font=("TkDefaultFont", 9), fg="#666666").pack(
     side="left", padx=(12, 0), anchor="s", pady=(0, 3))
 tk.Button(title_frame, text="📖 README", command=show_readme,
@@ -462,7 +462,7 @@ rtlsdr_frame.pack(fill="x", pady=5)
 make_section_info_button(rtlsdr_frame, "rtl_sdr", anchor="w")
 
 rtlsdr_desc = (
-    "Interfaces with the RTL-SDR USB dongle to capture raw IQ samples from the antenna.\n\n"
+    "Interfaces with the RTL-SDR USB dongle to capture raw IQ samples from the antenna. Not yet implemented so refrain from clicking the run button - nothing will happen.\n\n"
     "Input →  RF signal from antenna via USB dongle\n"
     "Output → Raw binary IQ sample file (.bin) at the configured sample rate\n\n"
     "This is the first stage in the pipeline. It controls the receiver tuning frequency, "

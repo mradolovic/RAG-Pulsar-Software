@@ -21,6 +21,20 @@ def run_topobary(combination):
     latitude  = combination["topo_barry_latitude"]
     longitude = combination["topo_barry_longitude"]
 
+    # Load ATNF params from config file written by GUI, fall back to defaults
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "topobary_config.json")
+    if os.path.exists(config_path):
+        import json
+        with open(config_path) as f:
+            cfg = json.load(f)
+        P0  = cfg.get("P0",  0.714519699726)
+        P1  = cfg.get("P1",  2.048265e-15)
+        PEP = cfg.get("PEP", 46473.00)
+    else:
+        P0  = 0.714519699726
+        P1  = 2.048265e-15
+        PEP = 46473.00
+
     script = f"""
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation
@@ -38,9 +52,9 @@ sc = SkyCoord(ra=3.54972*u.hr, dec=54.5786*u.deg)
 barycorrn = sc.radial_velocity_correction(obstime=Time(mj, format='mjd'), location=Loc)
 c = 299792458
 
-P0  = 0.714519699726
-P1  = 2.048265e-15
-PEP = 46473.00
+P0  = {P0}
+P1  = {P1}
+PEP = {PEP}
 
 PC = ((mj.value - PEP) * P1 * 24 * 3600) + P0
 correctionn = barycorrn.value / c * -1e6
@@ -210,6 +224,9 @@ def run_program_chain(program_chain, combinations):
                     if topo_period_ms is None:
                         print("TopoBary failed — stopping this combination.")
                         break
+
+                    # ✅ STORE IT — THIS IS CRITICAL
+                    combination["pulsar_det_an_period_ms"] = topo_period_ms
 
                 case "pulsar_det_an":
                     if not run_pulsar_det_an(combination, topo_period_ms):
