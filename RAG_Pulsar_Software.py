@@ -7,6 +7,7 @@ import os
 import argparse
 from lib.funcs import compile_everything, confirm
 from lib.io import console_program_chain_io
+from lib.runners import run_program_chain
 program_arg_map = {}
 program_chain = [] 
 
@@ -32,6 +33,7 @@ if __name__ == "__main__":
 
 
     #Now we need to ask the user to input all of the data
-    console_program_chain_io() 
-    
-    
+    program_chain, combinations = console_program_chain_io()
+
+    # Execute the program chain
+    run_program_chain(program_chain, combinations)
