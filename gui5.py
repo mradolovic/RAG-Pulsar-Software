@@ -100,7 +100,7 @@ def make_section_info_button(parent, key, **pack_kwargs):
 
         dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
 
-    btn = tk.Button(parent, text="? info", width=6, relief="groove",
+    btn = tk.Button(parent, text="More info", width=6, relief="groove",
                     fg="#884400", font=("TkDefaultFont", 8, "bold"),
                     cursor="question_arrow", command=on_click)
     btn.pack(**pack_kwargs)
@@ -127,7 +127,7 @@ def make_section_info_button_grid(parent, key, row, col, **grid_kwargs):
 
         dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
 
-    btn = tk.Button(parent, text="? info", width=6, relief="groove",
+    btn = tk.Button(parent, text="More info", width=6, relief="groove",
                     fg="#884400", font=("TkDefaultFont", 8, "bold"),
                     cursor="question_arrow", command=on_click)
     btn.grid(row=row, column=col, **grid_kwargs)
@@ -358,7 +358,7 @@ chain_frame.pack(fill="x", pady=5)
 
 chain_header = tk.Frame(chain_frame)
 chain_header.grid(row=0, column=0, columnspan=2, sticky="ew")
-make_section_info_button(chain_header, "Program Chain", side="right")
+make_section_info_button(chain_header, "Program Chain", side="left")
 
 var_chain = tk.IntVar(value=1)
 
@@ -376,9 +376,9 @@ sel_frame.pack(fill="x", pady=5)
 
 sel_header = tk.Frame(sel_frame)
 sel_header.grid(row=0, column=0, columnspan=5, sticky="ew")
-tk.Label(sel_header, text="Valid chains:  1→2→3→4  |  2→3→4  |  3→4  |  2 only",
-         font=("TkDefaultFont", 8), fg="#666666").pack(side="left")
-make_section_info_button(sel_header, "Program Selection", side="right")
+make_section_info_button(sel_header, "Program Selection", side="left")
+tk.Label(sel_header, text="Valid chains:  2,3,4 separately, or 2→3→4  or 3→4  only",
+         font=("TkDefaultFont", 8), fg="#666666").pack(side="left", padx=(6, 0))
 
 var_rtl_sdr    = tk.BooleanVar(value=False)
 var_rtlchannel = tk.BooleanVar(value=True)
@@ -401,7 +401,7 @@ for col, (label, var) in enumerate(programs):
 rtlsdr_frame = tk.LabelFrame(main, text="rtl_sdr", padx=10, pady=10)
 rtlsdr_frame.pack(fill="x", pady=5)
 
-make_section_info_button(rtlsdr_frame, "rtl_sdr", anchor="e")
+make_section_info_button(rtlsdr_frame, "rtl_sdr", anchor="w")
 
 rtlsdr_desc = (
     "Interfaces with the RTL-SDR USB dongle to capture raw IQ samples from the antenna.\n\n"
@@ -428,7 +428,7 @@ topo_frame = tk.LabelFrame(main, text="TopoBary  —  shared by all programs", p
 topo_frame.pack(fill="x", pady=5)
 topo_frame.columnconfigure(1, weight=1)
 
-make_section_info_button_grid(topo_frame, "TopoBary", row=0, col=3, padx=(8, 0), sticky="e")
+make_section_info_button_grid(topo_frame, "TopoBary", row=0, col=0, padx=(0, 8), sticky="w")
 
 tk.Label(topo_frame, text="Observation time").grid(row=1, column=0, sticky="w")
 topo_time_entry = tk.Entry(topo_frame)
@@ -474,7 +474,7 @@ frame2.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
 frame2.columnconfigure(1, weight=1)
 
 make_section_info_button_grid(frame2, "RTLChannel4bin", row=0, col=0,
-                               columnspan=4, sticky="e", pady=(0, 4))
+                               columnspan=4, sticky="w", pady=(0, 4))
 
 tk.Label(frame2, text="Input file").grid(row=1, column=0, sticky="w")
 file2_entry = tk.Entry(frame2)
@@ -516,7 +516,7 @@ frame1.grid(row=0, column=1, sticky="nsew", padx=2)
 frame1.columnconfigure(1, weight=1)
 
 make_section_info_button_grid(frame1, "pulsar_det_an", row=0, col=0,
-                               columnspan=4, sticky="e", pady=(0, 4))
+                               columnspan=4, sticky="w", pady=(0, 4))
 
 tk.Label(frame1, text="Input file").grid(row=1, column=0, sticky="w")
 file1_entry = tk.Entry(frame1)
@@ -562,7 +562,7 @@ pulplot_frame.columnconfigure(0, weight=1)
 pulplot_frame.rowconfigure(1, weight=1)
 
 make_section_info_button_grid(pulplot_frame, "pul_plot", row=0, col=0,
-                               sticky="e", pady=(0, 4))
+                               sticky="w", pady=(0, 4))
 
 pulplot_desc = (
     "Visualises the folded pulse profile and diagnostic plots produced by pulsar_det_an.\n\n"
@@ -572,12 +572,10 @@ pulplot_desc = (
     "detected pulse, dispersion measure curve, and frequency-time waterfall for inspection "
     "and verification of the detection."
 )
-pulplot_text = tk.Text(pulplot_frame, height=6, wrap="word", relief="flat",
-                       bg=cols_frame.cget("bg"), font=("TkDefaultFont", 9),
-                       state="normal", cursor="arrow")
-pulplot_text.insert("1.0", pulplot_desc)
-pulplot_text.config(state="disabled")
-pulplot_text.grid(row=1, column=0, sticky="new")
+pulplot_text = tk.Label(pulplot_frame, text=pulplot_desc, wraplength=280,
+                        justify="left", font=("TkDefaultFont", 9),
+                        anchor="nw")
+pulplot_text.grid(row=1, column=0, sticky="new", pady=(0, 4))
 
 tk.Button(pulplot_frame, text="▶ Run pul_plot", command=run_pul_plot_only,
           fg="white", bg="#2255aa").grid(row=2, column=0, sticky="sew",

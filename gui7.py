@@ -100,7 +100,7 @@ def make_section_info_button(parent, key, **pack_kwargs):
 
         dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
 
-    btn = tk.Button(parent, text="? info", width=6, relief="groove",
+    btn = tk.Button(parent, text="More info", width=6, relief="groove",
                     fg="#884400", font=("TkDefaultFont", 8, "bold"),
                     cursor="question_arrow", command=on_click)
     btn.pack(**pack_kwargs)
@@ -127,7 +127,7 @@ def make_section_info_button_grid(parent, key, row, col, **grid_kwargs):
 
         dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
 
-    btn = tk.Button(parent, text="? info", width=6, relief="groove",
+    btn = tk.Button(parent, text="More info", width=6, relief="groove",
                     fg="#884400", font=("TkDefaultFont", 8, "bold"),
                     cursor="question_arrow", command=on_click)
     btn.grid(row=row, column=col, **grid_kwargs)
@@ -225,7 +225,7 @@ def run_process(inputs, label="pipeline"):
 def run_pipeline():
     # Full pipeline respects checkboxes
     inputs = [str(var_chain.get())]
-    inputs.append("y" if var_rtl_sdr.get() else "n")
+    inputs.append("n")  # rtl_sdr always skipped in pipeline
     inputs.append("y" if var_rtlchannel.get() else "n")
     inputs.append("y" if var_pulsar_det.get() else "n")
     # pul_plot only sent if pulsar_det_an is also selected (loop doesn't break early)
@@ -268,6 +268,66 @@ def run_pulsar_det_only():
 def run_rtl_sdr_only():
     inputs = [str(var_chain.get()), "y"]
     run_process(inputs, "rtl_sdr")
+
+def run_topobary_only():
+    """Run TopoBary with current GUI values and show the result, updating the period field."""
+    import subprocess, sys, re, json
+    append_output("\n🚀 Running TopoBary...\n")
+    obs_time  = topo_time_entry.get()
+    latitude  = topo_lat_entry.get()
+    longitude = topo_lon_entry.get()
+    p0  = topo_p0_entry.get()
+    p1  = topo_p1_entry.get()
+    pep = topo_pep_entry.get()
+
+    # Save ATNF params to config so runners.py also picks them up
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "topobary_config.json")
+    with open(config_path, "w") as f:
+        json.dump({"P0": float(p0), "P1": float(p1), "PEP": float(pep)}, f)
+    script = f"""
+from astropy.time import Time
+from astropy.coordinates import SkyCoord, EarthLocation
+from astropy import units as u
+intm = "{obs_time}"
+inlt = {latitude}
+inln = {longitude}
+Date = Time(intm, format='isot', scale='utc')
+mj   = Time(Date, format='mjd')
+Loc  = EarthLocation.from_geodetic(lat=inlt, lon=inln, height=0)
+sc = SkyCoord(ra=3.54972*u.hr, dec=54.5786*u.deg)
+barycorrn = sc.radial_velocity_correction(obstime=Time(mj, format='mjd'), location=Loc)
+c = 299792458
+P0  = {p0}
+P1  = {p1}
+PEP = {pep}
+PC = ((mj.value - PEP) * P1 * 24 * 3600) + P0
+correctionn = barycorrn.value / c * -1e6
+TC = PC * (1 + correctionn / 1e6)
+print("Doppler Vel =", barycorrn.value, "m/s")
+print("ppm =", correctionn)
+print("B0329 Barycentric period =", PC)
+print("B0329 Topocentric period =", TC)
+"""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True, text=True)
+        append_output(result.stdout)
+        if result.stderr:
+            append_output(result.stderr)
+        # Parse topocentric period and update the ATNF period field
+        match = re.search(r"B0329 Topocentric period\s*=\s*([\d.eE+\-]+)", result.stdout)
+        if match:
+            tc_ms = float(match.group(1)) * 1000.0
+            # Find the ATNF period entry (index 2 in params1_entries)
+            period_entry = params1_entries[2]
+            period_entry.delete(0, tk.END)
+            period_entry.insert(0, f"{tc_ms:.6f}")
+            append_output(f"✅ Topocentric period {tc_ms:.6f} ms written to ATNF pulsar period field.\n")
+        else:
+            append_output("⚠️ Could not parse topocentric period.\n")
+    except Exception as e:
+        append_output(f"❌ Error: {e}\n")
 
 def run_pul_plot_only():
     # Call pul_plot.py directly — it needs no inputs, just reads its output files
@@ -358,11 +418,11 @@ chain_frame.pack(fill="x", pady=5)
 
 chain_header = tk.Frame(chain_frame)
 chain_header.grid(row=0, column=0, columnspan=2, sticky="ew")
-make_section_info_button(chain_header, "Program Chain", side="right")
+make_section_info_button(chain_header, "Program Chain", side="left")
 
 var_chain = tk.IntVar(value=1)
 
-tk.Radiobutton(chain_frame, text="Chain 1  (rtl_sdr → RTLChannel4bin → pulsar_det_an → pul_plot)",
+tk.Radiobutton(chain_frame, text="Chain 1  (RTLChannel4bin → pulsar_det_an → pul_plot)",
                variable=var_chain, value=1).grid(row=1, column=0, sticky="w", padx=8)
 tk.Radiobutton(chain_frame, text="Chain 2  (not yet implemented)",
                variable=var_chain, value=2, state="disabled").grid(row=2, column=0, sticky="w", padx=8)
@@ -376,17 +436,15 @@ sel_frame.pack(fill="x", pady=5)
 
 sel_header = tk.Frame(sel_frame)
 sel_header.grid(row=0, column=0, columnspan=5, sticky="ew")
-tk.Label(sel_header, text="Valid chains:  1→2→3→4  |  2→3→4  |  3→4  |  2 only",
-         font=("TkDefaultFont", 8), fg="#666666").pack(side="left")
-make_section_info_button(sel_header, "Program Selection", side="right")
+make_section_info_button(sel_header, "Program Selection", side="left")
+tk.Label(sel_header, text="Valid chains:  1→2→3  |  2→3  |  1 only  |  2 only  |  3 only",
+         font=("TkDefaultFont", 8), fg="#666666").pack(side="left", padx=(6, 0))
 
-var_rtl_sdr    = tk.BooleanVar(value=False)
 var_rtlchannel = tk.BooleanVar(value=True)
 var_pulsar_det = tk.BooleanVar(value=True)
 var_pul_plot   = tk.BooleanVar(value=False)
 
 programs = [
-    ("rtl_sdr",        var_rtl_sdr),
     ("RTLChannel4bin", var_rtlchannel),
     ("pulsar_det_an",  var_pulsar_det),
     ("pul_plot",       var_pul_plot),
@@ -401,7 +459,7 @@ for col, (label, var) in enumerate(programs):
 rtlsdr_frame = tk.LabelFrame(main, text="rtl_sdr", padx=10, pady=10)
 rtlsdr_frame.pack(fill="x", pady=5)
 
-make_section_info_button(rtlsdr_frame, "rtl_sdr", anchor="e")
+make_section_info_button(rtlsdr_frame, "rtl_sdr", anchor="w")
 
 rtlsdr_desc = (
     "Interfaces with the RTL-SDR USB dongle to capture raw IQ samples from the antenna.\n\n"
@@ -428,7 +486,7 @@ topo_frame = tk.LabelFrame(main, text="TopoBary  —  shared by all programs", p
 topo_frame.pack(fill="x", pady=5)
 topo_frame.columnconfigure(1, weight=1)
 
-make_section_info_button_grid(topo_frame, "TopoBary", row=0, col=3, padx=(8, 0), sticky="e")
+make_section_info_button_grid(topo_frame, "TopoBary", row=0, col=0, padx=(0, 8), sticky="w")
 
 tk.Label(topo_frame, text="Observation time").grid(row=1, column=0, sticky="w")
 topo_time_entry = tk.Entry(topo_frame)
@@ -447,6 +505,34 @@ topo_lon_entry = tk.Entry(topo_frame)
 topo_lon_entry.insert(0, "-1.33")
 topo_lon_entry.grid(row=3, column=1, sticky="ew")
 make_info_button(topo_frame, "TopoBary — Longitude", row=3, col=2)
+
+tk.Frame(topo_frame, height=1, bg="#cccccc").grid(
+    row=4, column=0, columnspan=3, sticky="ew", pady=(8, 4))
+
+tk.Label(topo_frame, text="ATNF P0 — ref. period [s]").grid(row=5, column=0, sticky="w")
+topo_p0_entry = tk.Entry(topo_frame)
+topo_p0_entry.insert(0, "0.714519699726")
+topo_p0_entry.grid(row=5, column=1, sticky="ew")
+make_info_button(topo_frame, "TopoBary — P0 reference period [s]", row=5, col=2)
+
+tk.Label(topo_frame, text="ATNF P1 — period derivative [s/s]").grid(row=6, column=0, sticky="w")
+topo_p1_entry = tk.Entry(topo_frame)
+topo_p1_entry.insert(0, "2.048265e-15")
+topo_p1_entry.grid(row=6, column=1, sticky="ew")
+make_info_button(topo_frame, "TopoBary — P1 period derivative [s/s]", row=6, col=2)
+
+tk.Label(topo_frame, text="ATNF PEP — period epoch [MJD]").grid(row=7, column=0, sticky="w")
+topo_pep_entry = tk.Entry(topo_frame)
+topo_pep_entry.insert(0, "46473.00")
+topo_pep_entry.grid(row=7, column=1, sticky="ew")
+make_info_button(topo_frame, "TopoBary — PEP period epoch [MJD]", row=7, col=2)
+
+tk.Button(topo_frame, text="▶ Run TopoBary", command=run_topobary_only,
+          fg="white", bg="#2255aa").grid(
+    row=8, column=0, columnspan=3, pady=(8, 2), sticky="ew")
+tk.Label(topo_frame, text="→ updates ATNF pulsar period field in pulsar_det_an",
+         font=("TkDefaultFont", 8), fg="#666666").grid(
+    row=9, column=0, columnspan=3, sticky="w")
 
 topo_frame.columnconfigure(1, weight=1)
 
@@ -474,7 +560,7 @@ frame2.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
 frame2.columnconfigure(1, weight=1)
 
 make_section_info_button_grid(frame2, "RTLChannel4bin", row=0, col=0,
-                               columnspan=4, sticky="e", pady=(0, 4))
+                               columnspan=4, sticky="w", pady=(0, 4))
 
 tk.Label(frame2, text="Input file").grid(row=1, column=0, sticky="w")
 file2_entry = tk.Entry(frame2)
@@ -516,7 +602,7 @@ frame1.grid(row=0, column=1, sticky="nsew", padx=2)
 frame1.columnconfigure(1, weight=1)
 
 make_section_info_button_grid(frame1, "pulsar_det_an", row=0, col=0,
-                               columnspan=4, sticky="e", pady=(0, 4))
+                               columnspan=4, sticky="w", pady=(0, 4))
 
 tk.Label(frame1, text="Input file").grid(row=1, column=0, sticky="w")
 file1_entry = tk.Entry(frame1)
@@ -528,9 +614,10 @@ make_info_button(frame1, "pulsar_det_an — Input file", row=1, col=3)
 params1_info = [
     ("FFT points N",                "16"),
     ("Data clock [ms]",             "1"),
+    ("ATNF pulsar period [ms]",     "714.492"),   # overridden by TopoBary at runtime
     ("Fold sections (Bins)",        "128"),
     ("FFT bins (Window Size)",      "1024"),
-    ("Pulse width [ms] (Threshold)","6.5"),
+    ("Pulse width [ms]",            "6.5"),
     ("DM [pc/cm³]",                 "26.7"),
     ("ppm offset",                  "-1.3"),
     ("ppm range factor",            "50"),
@@ -562,7 +649,7 @@ pulplot_frame.columnconfigure(0, weight=1)
 pulplot_frame.rowconfigure(1, weight=1)
 
 make_section_info_button_grid(pulplot_frame, "pul_plot", row=0, col=0,
-                               sticky="e", pady=(0, 4))
+                               sticky="w", pady=(0, 4))
 
 pulplot_desc = (
     "Visualises the folded pulse profile and diagnostic plots produced by pulsar_det_an.\n\n"
@@ -572,12 +659,10 @@ pulplot_desc = (
     "detected pulse, dispersion measure curve, and frequency-time waterfall for inspection "
     "and verification of the detection."
 )
-pulplot_text = tk.Text(pulplot_frame, height=6, wrap="word", relief="flat",
-                       bg=cols_frame.cget("bg"), font=("TkDefaultFont", 9),
-                       state="normal", cursor="arrow")
-pulplot_text.insert("1.0", pulplot_desc)
-pulplot_text.config(state="disabled")
-pulplot_text.grid(row=1, column=0, sticky="new")
+pulplot_text = tk.Label(pulplot_frame, text=pulplot_desc, wraplength=280,
+                        justify="left", font=("TkDefaultFont", 9),
+                        anchor="nw")
+pulplot_text.grid(row=1, column=0, sticky="new", pady=(0, 4))
 
 tk.Button(pulplot_frame, text="▶ Run pul_plot", command=run_pul_plot_only,
           fg="white", bg="#2255aa").grid(row=2, column=0, sticky="sew",
