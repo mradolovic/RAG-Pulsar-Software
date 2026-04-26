@@ -61,6 +61,111 @@ def make_info_button(parent, key, row, col):
 
 
 # -----------------------------
+# Section info buttons (for block titles)
+# Stored in ./section_info/ folder next to this script
+# -----------------------------
+SECTION_INFO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "section_info")
+os.makedirs(SECTION_INFO_DIR, exist_ok=True)
+
+README_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "README.txt")
+
+def _section_info_path(key):
+    safe = key.replace("/", "_").replace("\\", "_").replace(" ", "_")
+    return os.path.join(SECTION_INFO_DIR, safe + ".txt")
+
+def get_section_info(key):
+    path = _section_info_path(key)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    return f"No description yet.\n\nEdit:  section_info/{os.path.basename(_section_info_path(key))}"
+
+def make_section_info_button(parent, key, **pack_kwargs):
+    """A small ℹ button for block/section titles. Uses pack geometry."""
+    def on_click():
+        dialog = tk.Toplevel(parent)
+        dialog.title(f"ℹ  {key}")
+        dialog.geometry("500x220")
+        dialog.resizable(True, True)
+        dialog.attributes("-topmost", True)
+
+        tk.Label(dialog, text=key,
+                 font=("TkDefaultFont", 10, "bold")).pack(anchor="w", padx=10, pady=(8, 2))
+
+        text_box = scrolledtext.ScrolledText(dialog, height=8, wrap="word",
+                                             font=("TkDefaultFont", 9))
+        text_box.insert("1.0", get_section_info(key))
+        text_box.config(state="disabled")
+        text_box.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+        dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
+
+    btn = tk.Button(parent, text="More info", width=6, relief="groove",
+                    fg="#884400", font=("TkDefaultFont", 8, "bold"),
+                    cursor="question_arrow", command=on_click)
+    btn.pack(**pack_kwargs)
+    return btn
+
+
+def make_section_info_button_grid(parent, key, row, col, **grid_kwargs):
+    """A small ℹ button for block/section titles. Uses grid geometry."""
+    def on_click():
+        dialog = tk.Toplevel(parent)
+        dialog.title(f"ℹ  {key}")
+        dialog.geometry("500x220")
+        dialog.resizable(True, True)
+        dialog.attributes("-topmost", True)
+
+        tk.Label(dialog, text=key,
+                 font=("TkDefaultFont", 10, "bold")).pack(anchor="w", padx=10, pady=(8, 2))
+
+        text_box = scrolledtext.ScrolledText(dialog, height=8, wrap="word",
+                                             font=("TkDefaultFont", 9))
+        text_box.insert("1.0", get_section_info(key))
+        text_box.config(state="disabled")
+        text_box.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+        dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
+
+    btn = tk.Button(parent, text="More info", width=6, relief="groove",
+                    fg="#884400", font=("TkDefaultFont", 8, "bold"),
+                    cursor="question_arrow", command=on_click)
+    btn.grid(row=row, column=col, **grid_kwargs)
+    return btn
+
+
+def show_readme():
+    """Open a popup showing README.txt, or a helpful message if it doesn't exist."""
+    dialog = tk.Toplevel()
+    dialog.title("README — RAG Pulsar Detection Pipeline")
+    dialog.geometry("700x500")
+    dialog.resizable(True, True)
+    dialog.attributes("-topmost", True)
+
+    if os.path.exists(README_PATH):
+        with open(README_PATH, "r", encoding="utf-8") as f:
+            content = f.read()
+    else:
+        content = (
+            "No README.txt found.\n\n"
+            f"Create a file at:\n  {README_PATH}\n\n"
+            "and it will appear here."
+        )
+
+    tk.Label(dialog, text="README", font=("TkDefaultFont", 11, "bold")).pack(
+        anchor="w", padx=12, pady=(10, 2))
+    tk.Label(dialog, text=README_PATH, font=("TkDefaultFont", 8),
+             fg="#666666").pack(anchor="w", padx=12, pady=(0, 6))
+
+    text_box = scrolledtext.ScrolledText(dialog, wrap="word", font=("TkDefaultFont", 9))
+    text_box.insert("1.0", content)
+    text_box.config(state="disabled")
+    text_box.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+    dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
+
+
+# -----------------------------
 # Helpers
 # -----------------------------
 def browse_file(entry):
@@ -114,13 +219,15 @@ def run_process(inputs, label="pipeline"):
         if error:
             append_output(error)
         append_output("✅ Done\n")
+        return output  # returned so callers (e.g. run_pipeline) can parse it
     except Exception as e:
         append_output(f"❌ Error: {e}")
+        return ""
 
 def run_pipeline():
     # Full pipeline respects checkboxes
-    inputs = ["1"]
-    inputs.append("y" if var_rtl_sdr.get() else "n")
+    inputs = [str(var_chain.get())]
+    inputs.append("n")  # rtl_sdr always skipped in pipeline
     inputs.append("y" if var_rtlchannel.get() else "n")
     inputs.append("y" if var_pulsar_det.get() else "n")
     # pul_plot only sent if pulsar_det_an is also selected (loop doesn't break early)
@@ -139,52 +246,142 @@ def run_pipeline():
         # pulsar_det_an inputs (in_file auto-set from RTLChannel4bin if it ran)
         if not var_rtlchannel.get():
             inputs.append(file1_entry.get())
-        for e in params1_entries:
+        for i, e in enumerate(params1_entries):
+            if i == 2:
+                # "ATNF pulsar period [ms]" — NOT prompted by io.py; TopoBary
+                # computes it at runtime and passes it directly to pulsar_det_an.
+                # Sending it here would shift every subsequent argument by one.
+                continue
             inputs.append(e.get())
 
-    run_process(inputs, "full pipeline")
+    captured_output = run_process(inputs, "full pipeline")
+
+    # After the pipeline completes, update the ATNF period field with whatever
+    # TopoBary computed, so the GUI reflects what was actually used.
+    if var_pulsar_det.get() and captured_output:
+        import re
+        match = re.search(r"Topocentric period:\s*([\d.eE+\-]+)\s*ms", captured_output)
+        if match:
+            tc_ms = float(match.group(1))
+            period_entry = params1_entries[2]
+            period_entry.delete(0, tk.END)
+            period_entry.insert(0, f"{tc_ms:.6f}")
+            append_output(f"ℹ️  ATNF period field updated to {tc_ms:.6f} ms (TopoBary result)\n")
 
 def run_rtlchannel_only():
-    # Select only RTLChannel4bin: rtl_sdr=n, RTLChannel4bin=y
-    # After RTLChannel4bin is selected (started=True), sending n for pulsar_det_an
-    # triggers the "elif started: break" so the loop stops — pul_plot never asked
-    inputs = ["1", "n", "y", "n"]
-    inputs.append(file2_entry.get())   # in_file
-    inputs.append(file3_entry.get())   # out_file
+    inputs = [str(var_chain.get()), "n", "y", "n"]
+    inputs.append(file2_entry.get())
+    inputs.append(file3_entry.get())
     for e in params2_entries:
-        inputs.append(e.get())         # clock_rate, OP_data_set_rate, fft_points
-    # No TopoBary — only prompted when pulsar_det_an is selected
+        inputs.append(e.get())
     run_process(inputs, "RTLChannel4bin")
 
 def run_pulsar_det_only():
-    # Select only pulsar_det_an: rtl_sdr=n, RTLChannel4bin=n, pulsar_det_an=y
-    # RTLChannel4bin not selected so started=False when its n is sent;
-    # pulsar_det_an=y sets started=True; pul_plot=n then breaks
-    inputs = ["1", "n", "n", "y", "n"]
-    # TopoBary inputs (inside pulsar_det_an case)
+    inputs = [str(var_chain.get()), "n", "n", "y", "n"]
     inputs.extend(get_topo_inputs())
-    # in_file must be provided (no RTLChannel4bin output to auto-use)
     inputs.append(file1_entry.get())
     for e in params1_entries:
         inputs.append(e.get())
     run_process(inputs, "pulsar_det_an")
 
 def run_rtl_sdr_only():
-    # rtl_sdr=y — io.py immediately calls exit() for this, so just attempt it
-    inputs = ["1", "y"]
+    inputs = [str(var_chain.get()), "y"]
     run_process(inputs, "rtl_sdr")
 
+def run_topobary_only():
+    """Run TopoBary with current GUI values and show the result, updating the period field."""
+    import subprocess, sys, re, json
+    append_output("\n🚀 Running TopoBary...\n")
+    obs_time  = topo_time_entry.get()
+    latitude  = topo_lat_entry.get()
+    longitude = topo_lon_entry.get()
+    p0  = topo_p0_entry.get()
+    p1  = topo_p1_entry.get()
+    pep = topo_pep_entry.get()
+
+    # Save ATNF params to config so runners.py also picks them up
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "topobary_config.json")
+    with open(config_path, "w") as f:
+        json.dump({"P0": float(p0), "P1": float(p1), "PEP": float(pep)}, f)
+    script = f"""
+from astropy.time import Time
+from astropy.coordinates import SkyCoord, EarthLocation
+from astropy import units as u
+intm = "{obs_time}"
+inlt = {latitude}
+inln = {longitude}
+Date = Time(intm, format='isot', scale='utc')
+mj   = Time(Date, format='mjd')
+Loc  = EarthLocation.from_geodetic(lat=inlt, lon=inln, height=0)
+sc = SkyCoord(ra=3.54972*u.hr, dec=54.5786*u.deg)
+barycorrn = sc.radial_velocity_correction(obstime=Time(mj, format='mjd'), location=Loc)
+c = 299792458
+P0  = {p0}
+P1  = {p1}
+PEP = {pep}
+PC = ((mj.value - PEP) * P1 * 24 * 3600) + P0
+correctionn = barycorrn.value / c * -1e6
+TC = PC * (1 + correctionn / 1e6)
+print("Doppler Vel =", barycorrn.value, "m/s")
+print("ppm =", correctionn)
+print("B0329 Barycentric period =", PC)
+print("B0329 Topocentric period =", TC)
+"""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True, text=True)
+        append_output(result.stdout)
+        if result.stderr:
+            append_output(result.stderr)
+        # Parse topocentric period and update the ATNF period field
+        match = re.search(r"B0329 Topocentric period\s*=\s*([\d.eE+\-]+)", result.stdout)
+        if match:
+            tc_ms = float(match.group(1)) * 1000.0
+            # Find the ATNF period entry (index 2 in params1_entries)
+            period_entry = params1_entries[2]
+            period_entry.delete(0, tk.END)
+            period_entry.insert(0, f"{tc_ms:.6f}")
+            append_output(f"✅ Topocentric period {tc_ms:.6f} ms written to ATNF pulsar period field.\n")
+        else:
+            append_output("⚠️ Could not parse topocentric period.\n")
+    except Exception as e:
+        append_output(f"❌ Error: {e}\n")
+
 def run_pul_plot_only():
-    # pul_plot: rtl_sdr=n, RTLChannel4bin=n, pulsar_det_an=n would break early
-    # So we must send pulsar_det_an=y then pul_plot=y, but skip pulsar_det_an params
-    # Actually pul_plot case is just `pass` in io.py so no inputs needed after selection
-    inputs = ["1", "n", "n", "y", "y"]
-    inputs.extend(get_topo_inputs())
-    # pulsar_det_an in_file
-    inputs.append(file1_entry.get())
-    for e in params1_entries:
-        inputs.append(e.get())
-    run_process(inputs, "pul_plot")
+    # Call pul_plot.py directly — it needs no inputs, just reads its output files
+    # from data/pulsar_det_an_results/ and saves PNGs to data/pul_plot_results/
+    append_output("\n🚀 Running pul_plot...\n")
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        pul_plot_path = os.path.join(script_dir, "RTL", "src", "pul_plot.py")
+        results_dir   = os.path.join(script_dir, "data", "pulsar_det_an_results")
+        pul_plot_results_dir = os.path.join(script_dir, "data", "pul_plot_results")
+        os.makedirs(pul_plot_results_dir, exist_ok=True)
+
+        process = subprocess.Popen(
+            ["python", pul_plot_path, "--no-show"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=results_dir
+        )
+        output, error = process.communicate()
+        append_output(output)
+        if error:
+            append_output(error)
+
+        # Move PNGs to pul_plot_results
+        import shutil
+        for fname in ("fig.png", "pixel_plot.png", "pixel2_plot.png", "pixel3_plot.png",
+                      "concat_v.png", "concat2_v.png", "concat3_v.png"):
+            src = os.path.join(results_dir, fname)
+            if os.path.exists(src):
+                shutil.move(src, os.path.join(pul_plot_results_dir, fname))
+        append_output(f"Plots saved to: {pul_plot_results_dir}\n")
+        append_output("✅ Done\n")
+    except Exception as e:
+        append_output(f"❌ Error: {e}")
 
 
 # -----------------------------
@@ -216,24 +413,63 @@ canvas.bind_all("<MouseWheel>", on_mousewheel)
 
 
 # =============================
+# TITLE + README BUTTON
+# =============================
+title_frame = tk.Frame(main)
+title_frame.pack(fill="x", pady=(0, 5))
+
+tk.Label(title_frame, text="RAG Višnjan Pulsar Detection Pipeline",
+         font=("TkDefaultFont", 16, "bold")).pack(side="left")
+tk.Label(title_frame, text="a GUI for running Peter East's pulsar analysis software",
+         font=("TkDefaultFont", 9), fg="#666666").pack(
+    side="left", padx=(12, 0), anchor="s", pady=(0, 3))
+tk.Button(title_frame, text="📖 README", command=show_readme,
+          font=("TkDefaultFont", 9)).pack(side="right", padx=4)
+
+tk.Frame(main, height=1, bg="#cccccc").pack(fill="x", pady=(0, 8))
+
+
+# =============================
+# PROGRAM CHAIN SELECTION
+# =============================
+chain_frame = tk.LabelFrame(main, text="Program Chain", padx=10, pady=10)
+chain_frame.pack(fill="x", pady=5)
+
+chain_header = tk.Frame(chain_frame)
+chain_header.grid(row=0, column=0, columnspan=2, sticky="ew")
+make_section_info_button(chain_header, "Program Chain", side="left")
+
+var_chain = tk.IntVar(value=1)
+
+tk.Radiobutton(chain_frame, text="Chain 1  (RTLChannel4bin → pulsar_det_an → pul_plot)",
+               variable=var_chain, value=1).grid(row=1, column=0, sticky="w", padx=8)
+tk.Radiobutton(chain_frame, text="Chain 2  (not yet implemented)",
+               variable=var_chain, value=2, state="disabled").grid(row=2, column=0, sticky="w", padx=8)
+
+
+# =============================
 # PROGRAM SELECTION (checkboxes)
 # =============================
 sel_frame = tk.LabelFrame(main, text="Program Selection", padx=10, pady=10)
 sel_frame.pack(fill="x", pady=5)
 
-var_rtl_sdr    = tk.BooleanVar(value=False)
+sel_header = tk.Frame(sel_frame)
+sel_header.grid(row=0, column=0, columnspan=5, sticky="ew")
+make_section_info_button(sel_header, "Program Selection", side="left")
+tk.Label(sel_header, text="Valid chains:  1→2→3  |  2→3  |  1 only  |  2 only  |  3 only",
+         font=("TkDefaultFont", 8), fg="#666666").pack(side="left", padx=(6, 0))
+
 var_rtlchannel = tk.BooleanVar(value=True)
 var_pulsar_det = tk.BooleanVar(value=True)
 var_pul_plot   = tk.BooleanVar(value=False)
 
 programs = [
-    ("rtl_sdr",        var_rtl_sdr),
     ("RTLChannel4bin", var_rtlchannel),
     ("pulsar_det_an",  var_pulsar_det),
     ("pul_plot",       var_pul_plot),
 ]
 for col, (label, var) in enumerate(programs):
-    tk.Checkbutton(sel_frame, text=label, variable=var).grid(row=0, column=col, padx=12, sticky="w")
+    tk.Checkbutton(sel_frame, text=label, variable=var).grid(row=1, column=col, padx=12, sticky="w")
 
 
 # =============================
@@ -242,8 +478,10 @@ for col, (label, var) in enumerate(programs):
 rtlsdr_frame = tk.LabelFrame(main, text="rtl_sdr", padx=10, pady=10)
 rtlsdr_frame.pack(fill="x", pady=5)
 
+make_section_info_button(rtlsdr_frame, "rtl_sdr", anchor="w")
+
 rtlsdr_desc = (
-    "Interfaces with the RTL-SDR USB dongle to capture raw IQ samples from the antenna.\n\n"
+    "Interfaces with the RTL-SDR USB dongle to capture raw IQ samples from the antenna. Not yet implemented so refrain from clicking the run button - nothing will happen.\n\n"
     "Input →  RF signal from antenna via USB dongle\n"
     "Output → Raw binary IQ sample file (.bin) at the configured sample rate\n\n"
     "This is the first stage in the pipeline. It controls the receiver tuning frequency, "
@@ -265,24 +503,55 @@ tk.Button(rtlsdr_frame, text="▶ Run rtl_sdr", command=run_rtl_sdr_only,
 # =============================
 topo_frame = tk.LabelFrame(main, text="TopoBary  —  shared by all programs", padx=10, pady=10)
 topo_frame.pack(fill="x", pady=5)
+topo_frame.columnconfigure(1, weight=1)
 
-tk.Label(topo_frame, text="Observation time").grid(row=0, column=0, sticky="w")
+make_section_info_button_grid(topo_frame, "TopoBary", row=0, col=0, padx=(0, 8), sticky="w")
+
+tk.Label(topo_frame, text="Observation time").grid(row=1, column=0, sticky="w")
 topo_time_entry = tk.Entry(topo_frame)
-topo_time_entry.insert(0, "2018-06-27T02:52:00.0")
-topo_time_entry.grid(row=0, column=1, sticky="ew")
-make_info_button(topo_frame, "TopoBary — Observation time", row=0, col=2)
+topo_time_entry.insert(0, "2025-10-03T04:14:00.0")
+topo_time_entry.grid(row=1, column=1, sticky="ew")
+make_info_button(topo_frame, "TopoBary — Observation time", row=1, col=2)
 
-tk.Label(topo_frame, text="Latitude").grid(row=1, column=0, sticky="w")
+tk.Label(topo_frame, text="Latitude").grid(row=2, column=0, sticky="w")
 topo_lat_entry = tk.Entry(topo_frame)
-topo_lat_entry.insert(0, "54.21")
-topo_lat_entry.grid(row=1, column=1, sticky="ew")
-make_info_button(topo_frame, "TopoBary — Latitude", row=1, col=2)
+topo_lat_entry.insert(0, "45.29")
+topo_lat_entry.grid(row=2, column=1, sticky="ew")
+make_info_button(topo_frame, "TopoBary — Latitude", row=2, col=2)
 
-tk.Label(topo_frame, text="Longitude").grid(row=2, column=0, sticky="w")
+tk.Label(topo_frame, text="Longitude").grid(row=3, column=0, sticky="w")
 topo_lon_entry = tk.Entry(topo_frame)
-topo_lon_entry.insert(0, "-1.33")
-topo_lon_entry.grid(row=2, column=1, sticky="ew")
-make_info_button(topo_frame, "TopoBary — Longitude", row=2, col=2)
+topo_lon_entry.insert(0, "13.74")
+topo_lon_entry.grid(row=3, column=1, sticky="ew")
+make_info_button(topo_frame, "TopoBary — Longitude", row=3, col=2)
+
+tk.Frame(topo_frame, height=1, bg="#cccccc").grid(
+    row=4, column=0, columnspan=3, sticky="ew", pady=(8, 4))
+
+tk.Label(topo_frame, text="ATNF P0 — ref. period [s]").grid(row=5, column=0, sticky="w")
+topo_p0_entry = tk.Entry(topo_frame)
+topo_p0_entry.insert(0, "0.714519699726")
+topo_p0_entry.grid(row=5, column=1, sticky="ew")
+make_info_button(topo_frame, "TopoBary — P0 reference period [s]", row=5, col=2)
+
+tk.Label(topo_frame, text="ATNF P1 — period derivative [s/s]").grid(row=6, column=0, sticky="w")
+topo_p1_entry = tk.Entry(topo_frame)
+topo_p1_entry.insert(0, "2.048265e-15")
+topo_p1_entry.grid(row=6, column=1, sticky="ew")
+make_info_button(topo_frame, "TopoBary — P1 period derivative [s/s]", row=6, col=2)
+
+tk.Label(topo_frame, text="ATNF PEP — period epoch [MJD]").grid(row=7, column=0, sticky="w")
+topo_pep_entry = tk.Entry(topo_frame)
+topo_pep_entry.insert(0, "46473.00")
+topo_pep_entry.grid(row=7, column=1, sticky="ew")
+make_info_button(topo_frame, "TopoBary — PEP period epoch [MJD]", row=7, col=2)
+
+tk.Button(topo_frame, text="▶ Run TopoBary", command=run_topobary_only,
+          fg="white", bg="#2255aa").grid(
+    row=8, column=0, columnspan=3, pady=(8, 2), sticky="ew")
+tk.Label(topo_frame, text="→ updates ATNF pulsar period field in pulsar_det_an",
+         font=("TkDefaultFont", 8), fg="#666666").grid(
+    row=9, column=0, columnspan=3, sticky="w")
 
 topo_frame.columnconfigure(1, weight=1)
 
@@ -309,19 +578,22 @@ frame2 = tk.LabelFrame(cols_frame, text="RTLChannel4bin", padx=8, pady=8)
 frame2.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
 frame2.columnconfigure(1, weight=1)
 
-tk.Label(frame2, text="Input file").grid(row=0, column=0, sticky="w")
-file2_entry = tk.Entry(frame2)
-file2_entry.grid(row=0, column=1, sticky="ew")
-tk.Button(frame2, text="…", width=2,
-          command=lambda: browse_file(file2_entry)).grid(row=0, column=2)
-make_info_button(frame2, "RTLChannel4bin — Input file", row=0, col=3)
+make_section_info_button_grid(frame2, "RTLChannel4bin", row=0, col=0,
+                               columnspan=4, sticky="w", pady=(0, 4))
 
-tk.Label(frame2, text="Output file").grid(row=1, column=0, sticky="w")
-file3_entry = tk.Entry(frame2)
-file3_entry.grid(row=1, column=1, sticky="ew")
+tk.Label(frame2, text="Input file").grid(row=1, column=0, sticky="w")
+file2_entry = tk.Entry(frame2)
+file2_entry.grid(row=1, column=1, sticky="ew")
 tk.Button(frame2, text="…", width=2,
-          command=lambda: save_file(file3_entry)).grid(row=1, column=2)
-make_info_button(frame2, "RTLChannel4bin — Output file", row=1, col=3)
+          command=lambda: browse_file(file2_entry)).grid(row=1, column=2)
+make_info_button(frame2, "RTLChannel4bin — Input file", row=1, col=3)
+
+tk.Label(frame2, text="Output file").grid(row=2, column=0, sticky="w")
+file3_entry = tk.Entry(frame2)
+file3_entry.grid(row=2, column=1, sticky="ew")
+tk.Button(frame2, text="…", width=2,
+          command=lambda: save_file(file3_entry)).grid(row=2, column=2)
+make_info_button(frame2, "RTLChannel4bin — Output file", row=2, col=3)
 
 params2_info = [
     ("Sample Rate [MSPS]",     "2.4"),
@@ -330,18 +602,17 @@ params2_info = [
 ]
 params2_entries = []
 for i, (name, default) in enumerate(params2_info):
-    tk.Label(frame2, text=name).grid(row=2+i, column=0, sticky="w")
+    tk.Label(frame2, text=name).grid(row=3+i, column=0, sticky="w")
     e = tk.Entry(frame2)
     e.insert(0, default)
-    e.grid(row=2+i, column=1, sticky="ew")
+    e.grid(row=3+i, column=1, sticky="ew")
     params2_entries.append(e)
-    make_info_button(frame2, f"RTLChannel4bin — {name}", row=2+i, col=3)
+    make_info_button(frame2, f"RTLChannel4bin — {name}", row=3+i, col=3)
 
-# spacer row pushes Run button to the bottom
-frame2.rowconfigure(2+len(params2_info), weight=1)
+frame2.rowconfigure(3+len(params2_info), weight=1)
 tk.Button(frame2, text="▶ Run RTLChannel4bin", command=run_rtlchannel_only,
           fg="white", bg="#2255aa").grid(
-    row=3+len(params2_info), column=0, columnspan=4, pady=(8, 2), sticky="sew")
+    row=4+len(params2_info), column=0, columnspan=4, pady=(8, 2), sticky="sew")
 
 
 # ---- Column 1: pulsar_det_an ----
@@ -349,52 +620,55 @@ frame1 = tk.LabelFrame(cols_frame, text="pulsar_det_an", padx=8, pady=8)
 frame1.grid(row=0, column=1, sticky="nsew", padx=2)
 frame1.columnconfigure(1, weight=1)
 
-tk.Label(frame1, text="Input file").grid(row=0, column=0, sticky="w")
+make_section_info_button_grid(frame1, "pulsar_det_an", row=0, col=0,
+                               columnspan=4, sticky="w", pady=(0, 4))
+
+tk.Label(frame1, text="Input file").grid(row=1, column=0, sticky="w")
 file1_entry = tk.Entry(frame1)
-file1_entry.grid(row=0, column=1, sticky="ew")
+file1_entry.grid(row=1, column=1, sticky="ew")
 tk.Button(frame1, text="…", width=2,
-          command=lambda: browse_file(file1_entry)).grid(row=0, column=2)
-make_info_button(frame1, "pulsar_det_an — Input file", row=0, col=3)
+          command=lambda: browse_file(file1_entry)).grid(row=1, column=2)
+make_info_button(frame1, "pulsar_det_an — Input file", row=1, col=3)
 
 params1_info = [
-    # Matches io.py console_program_one_io pulsar_det_an case, in order:
-    # fft_points, data_clock_ms, fold_sections, fft_bins, pulse_width,
-    # dm, ppm_offset, ppm_range_factor, threshold_sigma,
-    # rf_band_mhz, rf_center_mhz, roll_avg, start_section, end_section
     ("FFT points N",                "16"),
     ("Data clock [ms]",             "1"),
+    ("ATNF pulsar period [ms]",     "714.492"),   # overridden by TopoBary at runtime
     ("Fold sections (Bins)",        "128"),
     ("FFT bins (Window Size)",      "1024"),
-    ("Pulse width [ms] (Threshold)","6.5"),
+    ("Pulse width [ms]",            "6.5"),
     ("DM [pc/cm³]",                 "26.7"),
     ("ppm offset",                  "-1.3"),
-    ("ppm range factor",            "50"),
-    ("Threshold sigma",             "6.5"),
+    ("ppm range factor",            "6"),
+    ("Threshold sigma",             "1"),
     ("RF bandwidth [MHz]",          "2.4"),
     ("RF centre frequency [MHz]",   "422"),
-    ("Roll average",                "0"),
+    ("Roll average",                "50"),
     ("Start section",               "0"),
     ("End section",                 "127"),
 ]
 params1_entries = []
 for i, (name, default) in enumerate(params1_info):
-    tk.Label(frame1, text=name).grid(row=1+i, column=0, sticky="w")
+    tk.Label(frame1, text=name).grid(row=2+i, column=0, sticky="w")
     e = tk.Entry(frame1)
     e.insert(0, default)
-    e.grid(row=1+i, column=1, sticky="ew")
+    e.grid(row=2+i, column=1, sticky="ew")
     params1_entries.append(e)
-    make_info_button(frame1, f"pulsar_det_an — {name}", row=1+i, col=3)
+    make_info_button(frame1, f"pulsar_det_an — {name}", row=2+i, col=3)
 
-# no spacer needed — this is the tallest column, button sits naturally at bottom
 tk.Button(frame1, text="▶ Run pulsar_det_an", command=run_pulsar_det_only,
           fg="white", bg="#2255aa").grid(
-    row=1+len(params1_info), column=0, columnspan=4, pady=(8, 2), sticky="ew")
+    row=2+len(params1_info), column=0, columnspan=4, pady=(8, 2), sticky="ew")
 
 
 # ---- Column 2: pul_plot (display only) ----
 pulplot_frame = tk.LabelFrame(cols_frame, text="pul_plot", padx=8, pady=8)
 pulplot_frame.grid(row=0, column=2, sticky="nsew", padx=(4, 0))
-pulplot_frame.rowconfigure(0, weight=1)  # spacer so Run button goes to bottom
+pulplot_frame.columnconfigure(0, weight=1)
+pulplot_frame.rowconfigure(1, weight=1)
+
+make_section_info_button_grid(pulplot_frame, "pul_plot", row=0, col=0,
+                               sticky="w", pady=(0, 4))
 
 pulplot_desc = (
     "Visualises the folded pulse profile and diagnostic plots produced by pulsar_det_an.\n\n"
@@ -404,15 +678,13 @@ pulplot_desc = (
     "detected pulse, dispersion measure curve, and frequency-time waterfall for inspection "
     "and verification of the detection."
 )
-pulplot_text = tk.Text(pulplot_frame, height=6, wrap="word", relief="flat",
-                       bg=cols_frame.cget("bg"), font=("TkDefaultFont", 9),
-                       state="normal", cursor="arrow")
-pulplot_text.insert("1.0", pulplot_desc)
-pulplot_text.config(state="disabled")
-pulplot_text.grid(row=0, column=0, sticky="new")
+pulplot_text = tk.Label(pulplot_frame, text=pulplot_desc, wraplength=280,
+                        justify="left", font=("TkDefaultFont", 9),
+                        anchor="nw")
+pulplot_text.grid(row=1, column=0, sticky="new", pady=(0, 4))
 
 tk.Button(pulplot_frame, text="▶ Run pul_plot", command=run_pul_plot_only,
-          fg="white", bg="#2255aa").grid(row=1, column=0, sticky="sew",
+          fg="white", bg="#2255aa").grid(row=2, column=0, sticky="sew",
                                          pady=(8, 2), ipadx=4)
 
 
@@ -421,7 +693,11 @@ tk.Button(pulplot_frame, text="▶ Run pul_plot", command=run_pul_plot_only,
 # =============================
 tk.Button(main, text="🚀 Run Full Pipeline", command=run_pipeline,
           font=("TkDefaultFont", 11, "bold"), pady=6,
-          fg="white", bg="#115500").pack(fill="x", pady=10)
+          fg="white", bg="#115500").pack(fill="x", pady=(10, 2))
+
+tk.Button(main, text="🗑 Clear Output",
+          command=lambda: output_box.delete("1.0", tk.END),
+          pady=4).pack(fill="x", pady=(0, 10))
 
 
 # =============================

@@ -110,25 +110,31 @@ def run_rtlchannel4bin(combination):
     return result.returncode == 0
 
 
-def run_pulsar_det_an(combination, topo_period_ms):
+def run_pulsar_det_an(combination, topo_period_ms=None):
     """
     pulsar_det_an command (argument order inferred from C source and io.py):
-      pulsar_det_an <infile> <fft_points> <data_clock_ms> <fold_sections>
-                    <fft_bins> <pulse_width> <dm> <topo_period_ms>
-                    <ppm_offset> <ppm_range_factor> <threshold_sigma>
+      pulsar_det_an <infile> <fft_points> <data_clock_ms> <topo_period_ms>
+                    <fold_sections> <fft_bins> <pulse_width> <dm>
+                    <ppm_offset> <threshold_sigma> <ppm_range_factor>
                     <rf_band_mhz> <rf_center_mhz> <roll_avg>
                     <start_section> <end_section>
+
+    topo_period_ms is read from combination["pulsar_det_an_topo_period_ms"]
+    (written by run_topobary via run_program_chain).  The optional argument
+    is kept for callers that pass it directly (e.g. run_pulsar_det_only in the GUI).
     """
-    if topo_period_ms is None:
+    # Prefer the value stored in the combination dict; fall back to the argument.
+    period_ms = combination.get("pulsar_det_an_topo_period_ms", topo_period_ms)
+    if period_ms is None:
         print("ERROR: No topocentric period — TopoBary must succeed before pulsar_det_an.")
         return False
 
     cmd = [
-        _bin("pulsar_det_an"),
-        combination["pulsar_det_an_in_file"],       # <data file>
+        _bin("pulsar_det_an_v4"),
+        combination["pulsar_det_an_in_file"],              # <data file>
         str(combination["pulsar_det_an_fft_points"]),      # <N-point FFT>
         str(combination["pulsar_det_an_data_clock_ms"]),   # <data clock (ms)>
-        str(topo_period_ms),                               # <pulsar period (ms)>
+        str(period_ms),                                    # <pulsar period (ms)> — from TopoBary
         str(combination["pulsar_det_an_fold_sections"]),   # <No: sections>
         str(combination["pulsar_det_an_fft_bins"]),        # <No. bins>
         str(combination["pulsar_det_an_pulse_width"]),     # <pulse width>
@@ -225,8 +231,10 @@ def run_program_chain(program_chain, combinations):
                         print("TopoBary failed — stopping this combination.")
                         break
 
-                    # ✅ STORE IT — THIS IS CRITICAL
-                    combination["pulsar_det_an_period_ms"] = topo_period_ms
+                    # Store as the authoritative period for this combination.
+                    # run_pulsar_det_an reads it from here; the GUI runner also
+                    # updates the ATNF period field via this value after the chain.
+                    combination["pulsar_det_an_topo_period_ms"] = topo_period_ms
 
                 case "pulsar_det_an":
                     if not run_pulsar_det_an(combination, topo_period_ms):
