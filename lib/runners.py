@@ -22,11 +22,15 @@ def run_topobary(combination):
     longitude = combination["topo_barry_longitude"]
 
     # Load ATNF params from config file written by GUI, fall back to defaults
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "topobary_config.json")
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "topobary_config.txt")
     if os.path.exists(config_path):
-        import json
+        cfg = {}
         with open(config_path) as f:
-            cfg = json.load(f)
+            for line in f:
+                line = line.strip()
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    cfg[k.strip()] = float(v.strip())
         P0  = cfg.get("P0",  0.714519699726)
         P1  = cfg.get("P1",  2.048265e-15)
         PEP = cfg.get("PEP", 46473.00)
@@ -130,7 +134,7 @@ def run_pulsar_det_an(combination, topo_period_ms=None):
         return False
 
     cmd = [
-        _bin("pulsar_det_an_v4"),
+        _bin("pulsar_det_an"),
         combination["pulsar_det_an_in_file"],              # <data file>
         str(combination["pulsar_det_an_fft_points"]),      # <N-point FFT>
         str(combination["pulsar_det_an_data_clock_ms"]),   # <data clock (ms)>
