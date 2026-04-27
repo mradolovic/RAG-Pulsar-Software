@@ -155,7 +155,7 @@ def run_pulsar_det_an(combination, topo_period_ms=None):
     # pulsar_det_an writes all output files with relative paths,
     # so we control the output location purely via cwd.
     results_dir = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "data", "pulsar_det_an_results"
+        os.path.dirname(os.path.abspath(__file__)), "..", "results", "pulsar_det_an_results"
     )
     os.makedirs(results_dir, exist_ok=True)
 
@@ -183,10 +183,10 @@ def run_pul_plot():
     """Run pul_plot.py from the same directory as this script."""
     pul_plot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "RTL", "src", "pul_plot.py")
     results_dir = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "data", "pulsar_det_an_results"
+        os.path.dirname(os.path.abspath(__file__)), "..", "results", "pulsar_det_an_results"
     )
     pul_plot_results_dir = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "data", "pul_plot_results"
+        os.path.dirname(os.path.abspath(__file__)), "..", "results", "pul_plot_results"
     )
     os.makedirs(pul_plot_results_dir, exist_ok=True)
 

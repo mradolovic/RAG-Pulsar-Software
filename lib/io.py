@@ -189,9 +189,9 @@ def console_program_one_io(selected_names):
                     res["pulsar_det_an_in_file"] = prompt_field("Enter the path to the input .bin file", str, can_vary=False)
 
                 res["pulsar_det_an_fft_points"]       = prompt_field("Enter the N-point FFT size (e.g. 16)",                                    int,   can_vary=False)
-                res["pulsar_det_an_data_clock_ms"]    = prompt_field("Enter the data clock in ms (e.g. 1)",                                     float, can_vary=False)
                 res["pulsar_det_an_fold_sections"]    = prompt_field("Enter the number of fold sections (e.g. 128)",                            int,   can_vary=False)
                 res["pulsar_det_an_fft_bins"]         = prompt_field("Enter the number of FFT bins (e.g. 1024)",                                int,   can_vary=False)
+                res["pulsar_det_an_data_clock_ms"]    = prompt_field("Enter the data clock in ms (e.g. 1)",                                     float, can_vary=False)
                 res["pulsar_det_an_pulse_width"]      = prompt_field("Enter the ATNF pulse width in ms (e.g. 6.5)",                             float, can_vary=False)
                 res["pulsar_det_an_dm"]               = prompt_field("Enter the ATNF dispersion measure DM in pc/cm^3 (e.g. 26.7)",             float, can_vary=False)
                 res["pulsar_det_an_ppm_offset"]       = prompt_field("Enter the ppm offset (e.g. 6)",                                           float, can_vary=True)

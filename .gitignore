@@ -1,7 +1,7 @@
 # Ignore all .bin files
 *.bin
 
-# Ignore all .txt files
+#Ignore all .txt files
 *.txt
 
 # Ignore all .png files
@@ -14,7 +14,17 @@
 *.exe
 
 #Ignore the __pycache__ in lib
-__pycache__/
+/lib/__pycache__/
+
+/data/
+
+/results/
+
+!/lib/param_info
+!/lib_section_info
+!/lib_README.txt
+!/lib/topobary_config.txt
+
 
 # Allow Git to scan directories
 !*/

@@ -306,7 +306,10 @@ def run_pulsar_det_only():
     inputs = [str(var_chain.get()), "n", "n", "y", "n"]
     inputs.extend(get_topo_inputs())
     inputs.append(file1_entry.get())
-    for e in params1_entries:
+    for i, e in enumerate(params1_entries):
+        if i == 4:
+            # ATNF pulsar period — computed by TopoBary, not prompted by io.py
+            continue
         inputs.append(e.get())
     run_process(inputs, "pulsar_det_an")
 
@@ -381,8 +384,8 @@ def run_pul_plot_only():
     try:
         script_dir = ROOT_DIR
         pul_plot_path = os.path.join(script_dir, "RTL", "src", "pul_plot.py")
-        results_dir   = os.path.join(script_dir, "data", "pulsar_det_an_results")
-        pul_plot_results_dir = os.path.join(script_dir, "data", "pul_plot_results")
+        results_dir   = os.path.join(script_dir, "results", "pulsar_det_an_results")
+        pul_plot_results_dir = os.path.join(script_dir, "results", "pul_plot_results")
         os.makedirs(pul_plot_results_dir, exist_ok=True)
 
         process = subprocess.Popen(
@@ -485,9 +488,9 @@ make_section_info_button(sel_header, "Program Selection", side="left")
 tk.Label(sel_header, text="Valid chains:  1→2→3  |  2→3  |  1 only  |  2 only  |  3 only",
          font=("TkDefaultFont", 8), fg="#666666").pack(side="left", padx=(6, 0))
 
-var_rtlchannel = tk.BooleanVar(value=True)
+var_rtlchannel = tk.BooleanVar(value=False)
 var_pulsar_det = tk.BooleanVar(value=True)
-var_pul_plot   = tk.BooleanVar(value=False)
+var_pul_plot   = tk.BooleanVar(value=True)
 
 programs = [
     ("RTLChannel4bin", var_rtlchannel),
@@ -733,8 +736,8 @@ def clear_all_outputs():
     import shutil
     script_dir = ROOT_DIR
     dirs = [
-        os.path.join(script_dir, "data", "pul_plot_results"),
-        os.path.join(script_dir, "data", "pulsar_det_an_results"),
+        os.path.join(script_dir, "results", "pul_plot_results"),
+        os.path.join(script_dir, "results", "pulsar_det_an_results"),
     ]
     cleared = []
     for d in dirs:
