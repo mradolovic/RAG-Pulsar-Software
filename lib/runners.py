@@ -134,7 +134,7 @@ def run_pulsar_det_an(combination, topo_period_ms=None):
         return False
 
     cmd = [
-        _bin("pulsar_det_an"),
+        _bin("pulsar_det_an_v4"),
         combination["pulsar_det_an_in_file"],              # <data file>
         str(combination["pulsar_det_an_fft_points"]),      # <N-point FFT>
         str(combination["pulsar_det_an_data_clock_ms"]),   # <data clock (ms)>

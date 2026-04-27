@@ -3,11 +3,15 @@ from tkinter import filedialog, scrolledtext
 import subprocess
 import os
 
+# The script runs from the project root. lib/ is always next to it.
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+LIB_DIR  = os.path.join(ROOT_DIR, "lib")
+
 # -----------------------------
 # Info storage — one .txt file per parameter
-# Stored in ./param_info/ folder next to this script
+# Stored in lib/param_info/ folder
 # -----------------------------
-INFO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "param_info")
+INFO_DIR = os.path.join(LIB_DIR, "param_info")
 os.makedirs(INFO_DIR, exist_ok=True)
 
 def _info_path(key):
@@ -35,7 +39,7 @@ def make_info_button(parent, key, row, col):
     def on_click():
         dialog = tk.Toplevel(parent)
         dialog.title(f"ℹ  {key}")
-        dialog.geometry("460x180")
+        dialog.geometry("460x220")
         dialog.resizable(True, True)
 
         tk.Label(dialog, text=key,
@@ -44,13 +48,35 @@ def make_info_button(parent, key, row, col):
         text_box = scrolledtext.ScrolledText(dialog, height=7, wrap="word",
                                              font=("TkDefaultFont", 9))
         text_box.insert("1.0", get_info(key))
-        text_box.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        text_box.config(state="disabled")
+        text_box.pack(fill="both", expand=True, padx=10, pady=(0, 4))
 
-        # Save to file whenever the window is closed
+        btn_frame = tk.Frame(dialog)
+        btn_frame.pack(fill="x", padx=10, pady=(0, 8))
+
+        editing = [False]
+
+        def toggle_edit():
+            if not editing[0]:
+                text_box.config(state="normal", bg="white")
+                edit_btn.config(text="💾 Save", fg="white", bg="#115500")
+                editing[0] = True
+            else:
+                set_info(key, text_box.get("1.0", "end-1c"))
+                text_box.config(state="disabled", bg=dialog.cget("bg"))
+                edit_btn.config(text="✏ Edit", fg="#2255aa", bg=btn_frame.cget("bg"))
+                editing[0] = False
+
+        edit_btn = tk.Button(btn_frame, text="✏ Edit", fg="#2255aa",
+                             font=("TkDefaultFont", 9), command=toggle_edit)
+        edit_btn.pack(side="left")
+
         def on_close():
-            set_info(key, text_box.get("1.0", "end-1c"))
+            if editing[0]:
+                set_info(key, text_box.get("1.0", "end-1c"))
             dialog.destroy()
 
+        tk.Button(btn_frame, text="Close", command=on_close).pack(side="right")
         dialog.protocol("WM_DELETE_WINDOW", on_close)
 
     btn = tk.Button(parent, text="ℹ", width=2, relief="flat",
@@ -64,10 +90,10 @@ def make_info_button(parent, key, row, col):
 # Section info buttons (for block titles)
 # Stored in ./section_info/ folder next to this script
 # -----------------------------
-SECTION_INFO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "section_info")
+SECTION_INFO_DIR = os.path.join(LIB_DIR, "section_info")
 os.makedirs(SECTION_INFO_DIR, exist_ok=True)
 
-README_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "README.txt")
+README_PATH = os.path.join(LIB_DIR, "README.txt")
 
 def _section_info_path(key):
     safe = key.replace("/", "_").replace("\\", "_").replace(" ", "_")
@@ -247,7 +273,7 @@ def run_pipeline():
         if not var_rtlchannel.get():
             inputs.append(file1_entry.get())
         for i, e in enumerate(params1_entries):
-            if i == 2:
+            if i == 4:
                 # "ATNF pulsar period [ms]" — NOT prompted by io.py; TopoBary
                 # computes it at runtime and passes it directly to pulsar_det_an.
                 # Sending it here would shift every subsequent argument by one.
@@ -263,7 +289,7 @@ def run_pipeline():
         match = re.search(r"Topocentric period:\s*([\d.eE+\-]+)\s*ms", captured_output)
         if match:
             tc_ms = float(match.group(1))
-            period_entry = params1_entries[2]
+            period_entry = params1_entries[4]
             period_entry.delete(0, tk.END)
             period_entry.insert(0, f"{tc_ms:.6f}")
             append_output(f"ℹ️  ATNF period field updated to {tc_ms:.6f} ms (TopoBary result)\n")
@@ -280,7 +306,10 @@ def run_pulsar_det_only():
     inputs = [str(var_chain.get()), "n", "n", "y", "n"]
     inputs.extend(get_topo_inputs())
     inputs.append(file1_entry.get())
-    for e in params1_entries:
+    for i, e in enumerate(params1_entries):
+        if i == 4:
+            # ATNF pulsar period — computed by TopoBary, not prompted by io.py
+            continue
         inputs.append(e.get())
     run_process(inputs, "pulsar_det_an")
 
@@ -290,7 +319,7 @@ def run_rtl_sdr_only():
 
 def run_topobary_only():
     """Run TopoBary with current GUI values and show the result, updating the period field."""
-    import subprocess, sys, re, json
+    import subprocess, sys, re
     append_output("\n🚀 Running TopoBary...\n")
     obs_time  = topo_time_entry.get()
     latitude  = topo_lat_entry.get()
@@ -300,9 +329,9 @@ def run_topobary_only():
     pep = topo_pep_entry.get()
 
     # Save ATNF params to config so runners.py also picks them up
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "topobary_config.json")
+    config_path = os.path.join(LIB_DIR, "topobary_config.txt")
     with open(config_path, "w") as f:
-        json.dump({"P0": float(p0), "P1": float(p1), "PEP": float(pep)}, f)
+        f.write(f"P0={p0}\nP1={p1}\nPEP={pep}\n")
     script = f"""
 from astropy.time import Time
 from astropy.coordinates import SkyCoord, EarthLocation
@@ -338,8 +367,8 @@ print("B0329 Topocentric period =", TC)
         match = re.search(r"B0329 Topocentric period\s*=\s*([\d.eE+\-]+)", result.stdout)
         if match:
             tc_ms = float(match.group(1)) * 1000.0
-            # Find the ATNF period entry (index 2 in params1_entries)
-            period_entry = params1_entries[2]
+            # Find the ATNF period entry (index 4 in params1_entries)
+            period_entry = params1_entries[4]
             period_entry.delete(0, tk.END)
             period_entry.insert(0, f"{tc_ms:.6f}")
             append_output(f"✅ Topocentric period {tc_ms:.6f} ms written to ATNF pulsar period field.\n")
@@ -353,10 +382,10 @@ def run_pul_plot_only():
     # from data/pulsar_det_an_results/ and saves PNGs to data/pul_plot_results/
     append_output("\n🚀 Running pul_plot...\n")
     try:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
+        script_dir = ROOT_DIR
         pul_plot_path = os.path.join(script_dir, "RTL", "src", "pul_plot.py")
-        results_dir   = os.path.join(script_dir, "data", "pulsar_det_an_results")
-        pul_plot_results_dir = os.path.join(script_dir, "data", "pul_plot_results")
+        results_dir   = os.path.join(script_dir, "results", "pulsar_det_an_results")
+        pul_plot_results_dir = os.path.join(script_dir, "results", "pul_plot_results")
         os.makedirs(pul_plot_results_dir, exist_ok=True)
 
         process = subprocess.Popen(
@@ -459,9 +488,9 @@ make_section_info_button(sel_header, "Program Selection", side="left")
 tk.Label(sel_header, text="Valid chains:  1→2→3  |  2→3  |  1 only  |  2 only  |  3 only",
          font=("TkDefaultFont", 8), fg="#666666").pack(side="left", padx=(6, 0))
 
-var_rtlchannel = tk.BooleanVar(value=True)
+var_rtlchannel = tk.BooleanVar(value=False)
 var_pulsar_det = tk.BooleanVar(value=True)
-var_pul_plot   = tk.BooleanVar(value=False)
+var_pul_plot   = tk.BooleanVar(value=True)
 
 programs = [
     ("RTLChannel4bin", var_rtlchannel),
@@ -507,19 +536,19 @@ topo_frame.columnconfigure(1, weight=1)
 
 make_section_info_button_grid(topo_frame, "TopoBary", row=0, col=0, padx=(0, 8), sticky="w")
 
-tk.Label(topo_frame, text="Observation time").grid(row=1, column=0, sticky="w")
+tk.Label(topo_frame, text="Observation time - UTC").grid(row=1, column=0, sticky="w")
 topo_time_entry = tk.Entry(topo_frame)
 topo_time_entry.insert(0, "2025-10-03T04:14:00.0")
 topo_time_entry.grid(row=1, column=1, sticky="ew")
 make_info_button(topo_frame, "TopoBary — Observation time", row=1, col=2)
 
-tk.Label(topo_frame, text="Latitude").grid(row=2, column=0, sticky="w")
+tk.Label(topo_frame, text="Latitude - degrees").grid(row=2, column=0, sticky="w")
 topo_lat_entry = tk.Entry(topo_frame)
 topo_lat_entry.insert(0, "45.29107")
 topo_lat_entry.grid(row=2, column=1, sticky="ew")
 make_info_button(topo_frame, "TopoBary — Latitude", row=2, col=2)
 
-tk.Label(topo_frame, text="Longitude").grid(row=3, column=0, sticky="w")
+tk.Label(topo_frame, text="Longitude - degrees").grid(row=3, column=0, sticky="w")
 topo_lon_entry = tk.Entry(topo_frame)
 topo_lon_entry.insert(0, "13.74837")
 topo_lon_entry.grid(row=3, column=1, sticky="ew")
@@ -631,21 +660,21 @@ tk.Button(frame1, text="…", width=2,
 make_info_button(frame1, "pulsar_det_an — Input file", row=1, col=3)
 
 params1_info = [
-    ("FFT points N",                "16"),
+    ("Number of FFT points",                "16"),
+    ("Number of fold sections (Bins)",        "128"),
+    ("Number of FFT bins (Window Size)",      "1024"),
     ("Data clock [ms]",             "1"),
-    ("ATNF pulsar period [ms]",     "714.492"),   # overridden by TopoBary at runtime
-    ("Fold sections (Bins)",        "128"),
-    ("FFT bins (Window Size)",      "1024"),
-    ("Pulse width [ms]",            "6.5"),
-    ("DM [pc/cm³]",                 "26.7"),
-    ("ppm offset",                  "-1.3"),
-    ("ppm range factor",            "6"),
-    ("Threshold sigma",             "1"),
+    ("ATNF pulsar period [ms]",     "714.4"),   # overridden by TopoBary at runtime
+    ("ATNF pulse width [ms]",            "6.5"),
+    ("ATNF DM [pc/cm³]",                 "26.7"),
+    ("ppm offset [ppm]",                  "-1.3"),
+    ("ppm range factor [?]",            "6"),
+    ("Threshold sigma [?]",             "1"),
     ("RF bandwidth [MHz]",          "2.4"),
     ("RF centre frequency [MHz]",   "422"),
-    ("Roll average",                "50"),
-    ("Start section",               "0"),
-    ("End section",                 "127"),
+    ("Roll average [?]",                "50"),
+    ("Start section [/]",               "0"),
+    ("End section [/]",                 "17"),
 ]
 params1_entries = []
 for i, (name, default) in enumerate(params1_info):
@@ -678,10 +707,13 @@ pulplot_desc = (
     "detected pulse, dispersion measure curve, and frequency-time waterfall for inspection "
     "and verification of the detection."
 )
-pulplot_text = tk.Label(pulplot_frame, text=pulplot_desc, wraplength=280,
-                        justify="left", font=("TkDefaultFont", 9),
-                        anchor="nw")
-pulplot_text.grid(row=1, column=0, sticky="new", pady=(0, 4))
+pulplot_text = tk.Text(pulplot_frame, height=7, wrap="word",
+                       font=("TkDefaultFont", 9),
+                       relief="flat", borderwidth=0,
+                       bg=pulplot_frame.cget("bg"))
+pulplot_text.insert("1.0", pulplot_desc)
+pulplot_text.config(state="disabled")
+pulplot_text.grid(row=1, column=0, sticky="nsew", pady=(0, 4))
 
 tk.Button(pulplot_frame, text="▶ Run pul_plot", command=run_pul_plot_only,
           fg="white", bg="#2255aa").grid(row=2, column=0, sticky="sew",
@@ -689,15 +721,50 @@ tk.Button(pulplot_frame, text="▶ Run pul_plot", command=run_pul_plot_only,
 
 
 # =============================
-# RUN FULL PIPELINE
+# RUN FULL PIPELINE + CLEAR OUTPUTS
 # =============================
-tk.Button(main, text="🚀 Run Full Pipeline", command=run_pipeline,
-          font=("TkDefaultFont", 11, "bold"), pady=6,
-          fg="white", bg="#115500").pack(fill="x", pady=(10, 2))
+pipeline_row = tk.Frame(main)
+pipeline_row.pack(fill="x", pady=(10, 2))
+pipeline_row.columnconfigure(0, weight=1)
+pipeline_row.columnconfigure(1, weight=1)
 
-tk.Button(main, text="🗑 Clear Output",
+tk.Button(pipeline_row, text="🚀 Run Full Pipeline", command=run_pipeline,
+          font=("TkDefaultFont", 11, "bold"), pady=6,
+          fg="white", bg="#115500").grid(row=0, column=0, sticky="ew", padx=(0, 2))
+
+def clear_all_outputs():
+    import shutil
+    script_dir = ROOT_DIR
+    dirs = [
+        os.path.join(script_dir, "results", "pul_plot_results"),
+        os.path.join(script_dir, "results", "pulsar_det_an_results"),
+    ]
+    cleared = []
+    for d in dirs:
+        d = os.path.normpath(d)
+        if os.path.exists(d):
+            for f in os.listdir(d):
+                fpath = os.path.join(d, f)
+                try:
+                    if os.path.isfile(fpath) or os.path.islink(fpath):
+                        os.remove(fpath)
+                    elif os.path.isdir(fpath):
+                        shutil.rmtree(fpath)
+                except Exception as e:
+                    append_output(f"⚠ Could not delete {fpath}: {e}")
+            cleared.append(os.path.basename(d))
+    if cleared:
+        append_output(f"🗑 Cleared: {', '.join(cleared)}\n")
+    else:
+        append_output("⚠ Output folders not found — nothing cleared.\n")
+
+tk.Button(pipeline_row, text="🗑 Clear All Program Outputs", command=clear_all_outputs,
+          font=("TkDefaultFont", 11, "bold"), pady=6,
+          fg="white", bg="#882200").grid(row=0, column=1, sticky="ew", padx=(2, 0))
+
+tk.Button(main, text="🗑 Clear Output Log",
           command=lambda: output_box.delete("1.0", tk.END),
-          pady=4).pack(fill="x", pady=(0, 10))
+          pady=4).pack(fill="x", pady=(2, 10))
 
 
 # =============================

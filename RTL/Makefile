@@ -23,7 +23,6 @@ endif
 TARGETS = $(BIN_DIR)/FileTrim$(EXT) \
           $(BIN_DIR)/RAFFT22Lg$(EXT) \
           $(BIN_DIR)/RTLChannel4bin$(EXT) \
-          $(BIN_DIR)/pulsar_det_an$(EXT) \
           $(BIN_DIR)/pulsar_det_an_v4$(EXT) \
           $(BIN_DIR)/rapulsar2con$(EXT) \
           $(BIN_DIR)/Blanks.txt \

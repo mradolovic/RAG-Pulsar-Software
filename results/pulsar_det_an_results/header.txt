@@ -2,7 +2,7 @@ Pulsar Data
 Input Data file: = /home/mradolovic/Documents/RAG-Pulsar-Software/data/output.bin
 Threshold = 1.0 x rms	Period Range Multiplier = 6.00
 Pulsar Period = 714.473947 ms	
-Data clock= 1.00 ms	
+Data clock= 1.00 ms 
 Pulsar Pulse Width = 6.50 ms	
 Pulsar Dispersion Measure = 26.70	
 Input file bytes = 432076224	
@@ -24,8 +24,5 @@ P-dot Search Range = -112.91 ppm/1000 to 112.91 ppm/1000
 Rolling Average Number = 50
 Start section = 0
 End section = 17
-
-Attenuated Bands: 
-Noise Substitute Sections: 
-Max bin = 132	Max SNR = 5.15
-Best Section Range SNR = 5.51	Section Centre 25	Best Section Range 13
+Max bin = 132	Max SNR = 5.16
+Best Section Range SNR = 5.52	Section Centre 25	Best Section Range 13
