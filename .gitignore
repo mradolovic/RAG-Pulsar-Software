@@ -2,7 +2,7 @@
 *.bin
 
 #Ignore all .txt files
-*.txt
+#*.txt
 
 # Ignore all .png files
 *.png
@@ -15,16 +15,6 @@
 
 #Ignore the __pycache__ in lib
 /lib/__pycache__/
-
-/data/
-
-/results/
-
-!/lib/param_info
-!/lib_section_info
-!/lib_README.txt
-!/lib/topobary_config.txt
-
 
 # Allow Git to scan directories
 !*/

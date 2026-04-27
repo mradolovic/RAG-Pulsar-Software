@@ -1,0 +1,1 @@
+The known rotational period of the target pulsar in milliseconds, as listed in the ATNF Pulsar Catalogue. This is the reference period used for folding the time series. Slight offsets due to Doppler shift are compensated by the ppm offset parameter.
