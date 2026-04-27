@@ -16,6 +16,8 @@
 #Ignore the __pycache__ in lib
 /lib/__pycache__/
 
+/results/
+
 # Allow Git to scan directories
 !*/
 
