@@ -515,13 +515,13 @@ make_info_button(topo_frame, "TopoBary — Observation time", row=1, col=2)
 
 tk.Label(topo_frame, text="Latitude").grid(row=2, column=0, sticky="w")
 topo_lat_entry = tk.Entry(topo_frame)
-topo_lat_entry.insert(0, "45.29")
+topo_lat_entry.insert(0, "45.29107")
 topo_lat_entry.grid(row=2, column=1, sticky="ew")
 make_info_button(topo_frame, "TopoBary — Latitude", row=2, col=2)
 
 tk.Label(topo_frame, text="Longitude").grid(row=3, column=0, sticky="w")
 topo_lon_entry = tk.Entry(topo_frame)
-topo_lon_entry.insert(0, "13.74")
+topo_lon_entry.insert(0, "13.74837")
 topo_lon_entry.grid(row=3, column=1, sticky="ew")
 make_info_button(topo_frame, "TopoBary — Longitude", row=3, col=2)
 
