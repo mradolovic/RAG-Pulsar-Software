@@ -1,4 +1,4 @@
-# ── Compiled binaries ────────────────────────────────────────────────────────
+# ── Compiled binaries ─────────────────────────────────────────────────────────
 *.out
 *.exe
 
@@ -12,21 +12,18 @@
 __pycache__/
 *.pyc
 
-# ── pulsar_det_an result text files ──────────────────────────────────────────
-# Ignore everything in results/ except the blank template files
-results/
-!results/
-!results/pulsar_det_an_results/
-!results/pulsar_det_an_results/Blankf.txt
-!results/pulsar_det_an_results/Blanks.txt
-!results/pul_plot_results/
-
 # ── Raw observation data folder ───────────────────────────────────────────────
 data/
 
-# ── RTL/bin compiled outputs and blank templates ─────────────────────────────
+# ── pulsar_det_an result text files ──────────────────────────────────────────
+results/pulsar_det_an_results/*.txt
+results/pul_plot_results/
+
+# Keep blank templates in results
+!results/pulsar_det_an_results/Blankf.txt
+!results/pulsar_det_an_results/Blanks.txt
+
+# ── RTL/bin ───────────────────────────────────────────────────────────────────
+# *.out and *.exe are already caught above, so just explicitly keep the Blanks
 RTL/bin/*.out
 RTL/bin/*.exe
-# Keep blank templates in RTL/bin
-!RTL/bin/Blankf.txt
-!RTL/bin/Blanks.txt
