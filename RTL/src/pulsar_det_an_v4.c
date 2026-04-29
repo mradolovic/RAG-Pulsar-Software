@@ -23,11 +23,14 @@ for MathCad,Excel and/or Python analysis.
 #include <stdlib.h>
 #include <time.h>
 
+#include "../includes/numerics/DMSch.h"
 #include "../includes/numerics/conv.h"
-#include "../includes/numerics/four.h"
 #include "../includes/numerics/is_pow_of_2.h"
-#include "../includes/numerics/targgaus.h"
+#include "../includes/numerics/pdSch.h"
+#include "../includes/numerics/perSch.h"
 #include "../includes/numerics/psnr.h"
+#include "../includes/numerics/spectrum.h"
+#include "../includes/numerics/targgaus.h"
 
 #define SWAP(a, b)                                                                                 \
     tempr = (a);                                                                                   \
@@ -38,7 +41,7 @@ for MathCad,Excel and/or Python analysis.
 #define lg2 log(2)
 
 long int file_end;
-long int p_num, range, strt, stp;
+long int range, strt, stp;
 int num, bins, mval, PTS, Mc, mbin = 0, cd, blaf[256], blas[256], mf = 0, ms = 0, couf, cous,
                               rolav = 8, cco = 0, M, N, dmp = 1, ra, c, s;
 float thres, bnds = 0, pulw, DM, ppm, mmx = 0, nno1, nno2, dmdiv;
@@ -95,17 +98,12 @@ FILE *fptdat;
 
 // Function declarations
 void out_dat(void);
-float gauss(float, float, float);              // gaussian shape pulse
-void spectrum(double[]);                       // data spectrum calculator
-float perSch(double, int, float, float);       // theoretical period search shape
-float DMSch(double, int, float, float, float); // theoretical dispersion search shape
-float pdSch(double, int, float, float, float); // theoretical period rate (pdot) search shape
 
 int main(int argc, char *argv[]) {
     long int aux = 0, start = 0, end = 127;
     long int c;
     double b;
-    int d, e, mm;
+    int d,  mm;
     float val;
 
     srand(563); // random key
@@ -497,8 +495,8 @@ int main(int argc, char *argv[]) {
             ftdat[c] = compval[num][c];
         }
         conv(ftdat, pulw, PTS, period, M, pdat,
-             targ);       // outputs ftdat input blocks asconvolved and filtered fftdat blocks
-        spectrum(fftdat); // outputs fftdat input block spectra as ftdat2
+             targ); // outputs ftdat input blocks asconvolved and filtered fftdat blocks
+        spectrum(fftdat, PTS, pdat, ftdat, ftdat2); // outputs fftdat input block spectra as ftdat2
         for (c = 0; c < (int)(PTS); c += 1) {
             compval[num][c] = fftdat[c]; // now partially folded, dc restored and optimally filtered
             spect[num][c] = ftdat2[c];
@@ -517,18 +515,15 @@ int main(int argc, char *argv[]) {
             av[num][Mc] = av[num][Mc] + (float)(compval[num][c]) / bins;
             rm[num][Mc] =
                 rm[num][Mc] + ((float)(compval[num][c]) * ((float)(compval[num][c])) / bins);
-            // printf("	%.2f,	%.2f	%d\n",(float)rm[num][Mc],(float)av[num][Mc],Mc);
-        } // printf("	%.2f,	%.2f	%d\n",(float)rm[num][M/2],(float)av[num][M/2],Mc);
+        }
     }
-    // printf("M3=%d	N=%d	bins=%d\n",M,N,bins);
 
-    // Calculate new rms
     for (m = 0; m < M; m += 1) {
         for (num = 0; num < N; num += 1) {
             rm[num][m] = (double)sqrt((double)rm[num][m] -
                                       (double)(av[num][m] * (double)av[num][m])); // now true rms
         }
-    } // printf("	%.2f, %.2f",(double)rm[num][M/2],(double)av[num][M/2]);
+    }
 
     // Print Post DC correction and filtering mid-section, band rms, mean
     printf("\n Post DC correction and filtering band rms, mean \n");
@@ -551,10 +546,12 @@ int main(int argc, char *argv[]) {
     for (num = 0; num < N; num += 1) {
         for (c = 0; c < (int)(M * bins); c += 1) {
             Mc = (int)(c / bins);
-            if (compval[num][c] > (X * rm[num][Mc]))
+            if (compval[num][c] > (X * rm[num][Mc])) {
                 compval[num][c] = X * rm[num][Mc];
-            if (-compval[num][c] > (X * rm[num][Mc]))
+            }
+            if (-compval[num][c] > (X * rm[num][Mc])) {
                 compval[num][c] = -X * rm[num][Mc];
+            }
         }
     }
     printf("threshold = %.1f \n", X);
@@ -619,7 +616,7 @@ int main(int argc, char *argv[]) {
                 dfold[d] = dfold[d] + compval[num][s * bins + d];
             } // outsumt[num][d];outdat[d]=0;
         }
-        psnr(bins, dfold, mbin, datout,  pulw, outdat);
+        psnr(bins, dfold, mbin, datout, pulw, outdat);
         if (datout[0] > mmx) {
             mmx = datout[0];
         }
@@ -653,7 +650,7 @@ int main(int argc, char *argv[]) {
     // De-Disperse Bands - build dispersing matrix about band centre
     int emax = 0, dmx = 101,
         dmn = 50; // max and min of e range; dmp is DM polarity; dmdiv is range divider
-    for (e = 0; e < dmx; e += 1) {
+    for (int e = 0; e < dmx; e += 1) {
         for (num = (-N / 2); num < (N / 2); num += 1) {
             for (c = 0; c < (int)(M * bins); c += 1) {
                 ddispbands[e][c] =
@@ -668,12 +665,12 @@ int main(int argc, char *argv[]) {
     }
 
     // Dispersion Search
-    for (e = 0; e < dmx; e += 1) {
+    for (int e = 0; e < dmx; e += 1) {
         for (d = 0; d < (int)bins; d += 1) {
             ddfold[e][d] = 0;
         }
     }
-    for (e = 0; e < dmx; e += 1) {
+    for (int e = 0; e < dmx; e += 1) {
         for (c = 0; c < (int)M; c += 1) {
             for (d = 0; d < (int)bins; d += 1) {
                 ddfold[e][d] = ddfold[e][d] + ddispbands[e][(c * bins + d) % (M * bins)];
@@ -685,11 +682,11 @@ int main(int argc, char *argv[]) {
     float dmsrch;
     mmx = 0;
     printf("\n Dispersion Search \n");
-    for (e = 0; e < dmx; e += 1) {
+    for (int e = 0; e < dmx; e += 1) {
         for (d = 0; d < bins; d += 1) {
             dfold[d] = ddfold[e][d];
         }
-        psnr(bins, dfold);
+        psnr(bins, dfold, mbin, datout, pulw, outdat);
         if (datout[0] > mmx) {
             mmx = datout[0];
             mbin = datout[1];
@@ -735,13 +732,13 @@ int main(int argc, char *argv[]) {
     }
 
     // Build dmSrchns.txt - Dispersion Search SNR - with target pulse range blanked
-    for (e = 0; e < dmx; e += 1) {
+    for (int e = 0; e < dmx; e += 1) {
         for (d = 0; d < bins; d += 1) {
             dfold[d] = ddfold[e][d];
             if (d > mbin - 8 * pulw && d < mbin + 8 * pulw)
                 dfold[d] = 0; // 8 for large signalsmbin+4*pulw//30 small
         }
-        psnr(bins, dfold);
+        psnr(bins, dfold, mbin, datout, pulw, outdat);
         fprintf(fptdmns, "%.2f	%.2f	%d\n",
                 (float)((float)(N) * ((float)e - dmn) / dmdiv) * (period / (float)bins) * (DM / td),
                 datout[0], (int)datout[1]); /* write txt data to the output text file */
@@ -797,7 +794,7 @@ int main(int argc, char *argv[]) {
         for (d = 0; d < bins; d += 1) {
             dfold[d] = dfold[d] + outsumt[num][d];
         }
-        psnr(bins, dfold);
+        psnr(bins, dfold, mbin, datout, pulw, outdat);
         for (d = 0; d < bins; d += 1) {
             bndcum[num][d] = outdat[d];
         }
@@ -826,7 +823,7 @@ int main(int argc, char *argv[]) {
             dfold[d] = dfold[d] + outsumt[num][d];
         }
     }
-    psnr(bins, dfold);
+    psnr(bins, dfold, mbin, datout, pulw, outdat);
     maxx = datout[0];
     printf("Bands = %d 	BSNR =  %.2f	bin = %d\n", N, datout[0], (int)datout[1]);
     printf("\n");
@@ -839,7 +836,7 @@ int main(int argc, char *argv[]) {
             dfoldd[d] = allbandsd[d + m * bins]; // dispersed version
             outdat[d] = 0;
         }
-        psnr(bins, dfold);
+        psnr(bins, dfold, mbin, datout, pulw, outdat);
         for (d = 0; d < bins; d += 1) {
             puldat[m][d] = outdat[d];
             fprintf(fptpuld, "	%.2f", puldat[m][d]);
@@ -851,7 +848,7 @@ int main(int argc, char *argv[]) {
         sectsnr[m][0] = m;
         sectsnr[m][1] = datout[0];
         sectsnr[m][2] = datout[1];
-        psnr(bins, dfoldd);
+        psnr(bins, dfold, mbin, datout, pulw, outdat);
         for (d = 0; d < bins; d += 1) {
             puldatd[m][d] = (float)outdat[d];
             fprintf(fptpuldd, "  %.2f",
@@ -871,7 +868,7 @@ int main(int argc, char *argv[]) {
             dfoldd[d] = dfoldd[d] + allbandsd[d + m * bins];
             dfolddd[d] = dfolddd[d] + allbandsdd[d + m * bins];
         }
-        psnr(bins, dfold);
+        psnr(bins, dfold, mbin, datout, pulw, outdat);
         sectsnr[m][0] = m;
         sectsnr[m][1] = datout[0];
         sectsnr[m][2] = datout[1];
@@ -882,13 +879,13 @@ int main(int argc, char *argv[]) {
         fprintf(fptfold, "\n");
         fprintf(fptcums, "%d	%.2f	%d\n", m, datout[0],
                 (int)datout[1]); /* write cumulative band SNR txt data to the output text file */
-        psnr(bins, dfoldd);
+        psnr(bins, dfold, mbin, datout, pulw, outdat);
         for (d = 0; d < bins; d += 1) {
             foldatd[m][d] = outdat[d];
             fprintf(fptfoldd, "%.2f  ", foldatd[m][d]); // dedispersed foldat
         }
         fprintf(fptfoldd, "\n");
-        psnr(bins, dfolddd);
+        psnr(bins, dfold, mbin, datout, pulw, outdat);
         for (d = 0; d < bins; d += 1) {
             foldatdd[m][d] = outdat[d];
             fprintf(fptfolddd, "%.2f  ",
@@ -928,7 +925,7 @@ int main(int argc, char *argv[]) {
         for (d = 0; d < bins; d += 1) {
             dfold[d] = outsumt[st][d];
         }
-        psnr(bins, dfold);
+        psnr(bins, dfold, mbin, datout, pulw, outdat);
         if (datout[0] > maxx)
             maxx = datout[0];
     }
@@ -936,7 +933,7 @@ int main(int argc, char *argv[]) {
         for (d = 0; d < bins; d += 1) {
             dfold[d] = outsumt[st][d];
         }
-        psnr(bins, dfold);
+        psnr(bins, dfold, mbin, datout, pulw, outdat);
         pspr = 3 + (maxx - 3) * perSch((double)(st - 25) * 1 / nno1, (numper), pulw, period);
         printf("ppm = %.2f	SNR =  %.2f	bin = %d\n", (float)(st - 25) / nno1, datout[0],
                (int)datout[1]);
@@ -984,7 +981,7 @@ int main(int argc, char *argv[]) {
         for (d = 0; d < bins; d += 1) {
             dfold[d] = outsumt[st][d];
         }
-        psnr(bins, dfold);
+        psnr(bins, dfold, mbin, datout, pulw, outdat);
         pdpr = 3 + (maxx - 3) * pdSch((float)(st - 25) * 2 * numlog * .5 / (double)M / ratio / nno1,
                                       (numper), pulw, period, numlog);
         printf("pdot = %.2f	SNR =  %.2f	bin = %d\n",
@@ -1023,7 +1020,7 @@ int main(int argc, char *argv[]) {
             for (s = 0; s < bins; s++) {
                 dfold[s] = 100 * sumt[s] / count[s];
             }
-            psnr(bins, dfold);
+            psnr(bins, dfold, mbin, datout, pulw, outdat);
             ppdot[sp][st] = datout[0];
             fprintf(fptppd, "%.2f	 ", ppdot[sp][st]); /* write txt data to the output text file */
         }
@@ -1051,7 +1048,7 @@ int main(int argc, char *argv[]) {
                     dfold[d] = dfold[d] + allbandsd[d + (m + xx) * bins];
                 }
             }
-            psnr(bins, dfold);
+            psnr(bins, dfold, mbin, datout, pulw, outdat);
             if (outdat[(int)datout[1]] > pkmax) {
                 pkmax = outdat[(int)datout[1]];
                 centre = m + mp / 2;
@@ -1101,7 +1098,8 @@ int main(int argc, char *argv[]) {
     for (d = 0; d < bins; d += 1) {
         dfold[d] = outsumt[25][d]; // outsumt/outdat[d] from p-dot fold with zero pdot
     }
-    psnr(bins, dfold); // bestprof[d] best at rolling average setting. Rolling average peak = pkdat.
+    // bestprof[d] best at rolling average setting. Rolling average peak = pkdat.
+    psnr(bins, dfold, mbin, datout, pulw, outdat);
     for (d = 0; d < bins; d += 1) {
         fprintf(fptprof, "%.1f	%f	%f	%f\n", (float)d, (float)outdat[d], bestprof[d],
                 pkdat[d]); /* write txt data to the output text file */
@@ -1181,76 +1179,4 @@ int main(int argc, char *argv[]) {
     fclose(fptcut);
     fclose(fptdat);
     exit(0);
-} // End
-
-
-// Compressed Data Spectrum
-void spectrum(double sum[]) {
-    int v;
-
-    /*FT of folded data */
-    for (v = 0; v < PTS; v++) {
-        pdat[2 * v] = sum[v];
-        pdat[2 * v + 1] = 0;
-    }
-    /*FT of Gaussian target data */
-    four(pdat - 1, PTS, -1);
-    /*Target magnitude */
-    for (v = 0; v < PTS / 2; v++) {
-        ftdat2[v] = pdat[2 * v] / sqrt((double)PTS);
-    }
-} // return
-
-// Period search theory plot - see http://www.y1pwe.co.uk/RAProgs/PulsarAnalysisLowSNR2.doc
-float perSch(double p, int Np, float w, float P) {
-    double wfac, lnf, sum = 0, nn;
-    int n;
-    wfac = 2000000 * (double)w / (double)Np / (double)P;
-    lnf = -4.0 * log((double)2.0);
-    for (n = 0; n < Np; n += 1) {
-        nn = (p * (1.0 - (double)(n) / (double)Np));
-        nn = nn / wfac;
-        nn = nn * nn;
-        sum = sum + exp(lnf * nn) / Np;
-    }
-    return ((float)sum);
-} // end
-
-// DM search theory plot - see http://www.y1pwe.co.uk/RAProgs/PulsarAnalysisLowSNR2.doc
-float DMSch(double dm, int Nf, float DM, float td, float w) {
-    double wfac, lnf, sum = 0, nn, nn2;
-    int n;
-    wfac = (double)w * (double)DM / (double)(td * (double)(Nf - 1) / (double)(Nf));
-    lnf = (double)(-4.0) * (double)log(2.0);
-    for (n = 1; n < Nf + 1; n += 1) {
-        nn = (((double)dm - (double)DM) * ((double)0.5 - (double)(n) / (double)Nf));
-        nn = nn / wfac;
-        nn2 = nn / 2;
-        nn = nn * nn;
-        nn2 = nn2 * nn2;
-        sum = sum + (exp(lnf * nn) / (double)(Nf)) + 0.5 * (exp(lnf * nn2) / (double)(Nf));
-    } // sum=1/Nf+sum*(1-1/Nf);
-    return ((float)sum / 1.5);
-} // end
-
-// Pdot search theoretical plot - see http://www.y1pwe.co.uk/RAProgs/PulsarAnalysisLowSNR2.doc
-float pdSch(double pd, int Np, float w, float P, float cor) {
-    double wfac, lnf, sum = 0, sumo = 0, nn;
-    int n, sh;
-    wfac = 2.0 * (double)1000000.0 * (double)cor;
-    lnf = -4.0 * log(2.0);
-    for (sh = -0; sh < 10; sh += 1) {
-        for (n = 2; n < Np + 2; n += 1) {
-            nn = (pd * P * ((double)(n - 1) * (double)(n - 2)) / wfac);
-            nn = ((double)(sh / 40.0) + nn) / (double)w;
-            nn = nn * nn;
-            sum = sum + exp(lnf * nn) / Np;
-        }
-        if (sum > sumo) {
-            sumo = sum;
-        }
-        sum = 0;
-    }
-    return ((float)sumo);
-    sumo = 0;
 }
