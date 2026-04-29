@@ -1,0 +1,1 @@
+The first time section of the data to include in the analysis (default 0, i.e. the beginning of the file). Useful for skipping RFI or instrument settling at the start of a recording.

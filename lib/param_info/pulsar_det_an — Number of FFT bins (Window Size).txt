@@ -1,0 +1,1 @@
+The number of phase bins used to build the folded pulse profile (default 128). More bins give finer time resolution within each pulse period, but require more data to fill reliably.

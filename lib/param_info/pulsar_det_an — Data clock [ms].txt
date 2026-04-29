@@ -1,1 +1,1 @@
-xcbvbxc
+The time interval between successive input samples in milliseconds, i.e. the reciprocal of the data set rate (default 1 ms = 1 kHz). This calibrates the time axis used for folding and period searching.

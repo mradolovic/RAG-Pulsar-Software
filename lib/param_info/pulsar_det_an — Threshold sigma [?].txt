@@ -1,0 +1,1 @@
+The signal-to-noise detection threshold in units of standard deviations (default 1). Candidates above this level are flagged; lower values are more sensitive but increase false positives.

@@ -1,1 +1,1 @@
-fsdfsdf
+Geographic longitude of the telescope in decimal degrees. For sites east of Greenwich this is positive; west is negative.

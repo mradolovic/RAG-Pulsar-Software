@@ -1,1 +1,4 @@
-so you can record your own data
+Interfaces with the RTL-SDR USB dongle to capture raw IQ samples from the antenna. Not yet implemented so refrain from clicking the run button - nothing will happen.
+
+Input →  RF signal from antenna via USB dongle
+Output → Raw binary IQ sample file (.bin) at the configured sample rate

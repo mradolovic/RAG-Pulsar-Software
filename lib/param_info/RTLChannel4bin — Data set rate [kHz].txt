@@ -1,1 +1,1 @@
-xdvssxvvx
+The output data rate per frequency channel in kilohertz (default 1 kHz). The code averages (Sample Rate × 1000) / (Data set rate × FFT points) consecutive FFT frames to produce one output sample at this rate.
