@@ -447,7 +447,7 @@ canvas.bind_all("<MouseWheel>", on_mousewheel)
 title_frame = tk.Frame(main)
 title_frame.pack(fill="x", pady=(0, 5))
 
-tk.Label(title_frame, text="RAG Višnjan Pulsar Detection Pipeline",
+tk.Label(title_frame, text="RAG Višnjan Pulsar Detection Pipeline v1.0.",
          font=("TkDefaultFont", 16, "bold")).pack(side="left")
 tk.Label(title_frame, text="a GUI for running Peter East's pulsar analysis software",
          font=("TkDefaultFont", 9), fg="#666666").pack(
