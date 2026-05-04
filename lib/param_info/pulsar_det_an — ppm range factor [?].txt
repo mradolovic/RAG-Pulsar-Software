@@ -1,1 +1,0 @@
-Scales the total width of the period search window around the nominal period (default 6). A larger value searches a wider ppm range at the cost of computation time.

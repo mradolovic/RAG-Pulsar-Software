@@ -1,2 +1,0 @@
-A fractional period offset in parts per million applied as the starting point of the period search (default −1.3 ppm). 
-It is used to adjust the sampling frequency variation due to SDR's oscillator jitter.

@@ -418,7 +418,7 @@ def run_pul_plot_only():
 # -----------------------------
 root = tk.Tk()
 root.title("Pulsar GUI Runner")
-root.geometry("1000x1100")
+root.geometry("1500x1100")
 
 canvas = tk.Canvas(root)
 scrollbar = tk.Scrollbar(root, orient="vertical", command=canvas.yview)
@@ -660,19 +660,19 @@ tk.Button(frame1, text="…", width=2,
 make_info_button(frame1, "pulsar_det_an — Input file", row=1, col=3)
 
 params1_info = [
-    ("Number of FFT points",                "16"),
-    ("Number of fold sections (Bins)",        "128"),
-    ("Number of FFT bins (Window Size)",      "1024"),
+    ("Number of data channels",                "16"),
+    ("Number of fold sections",        "128"),
+    ("Number of FFT bins",      "1024"),
     ("Data clock [ms]",             "1"),
     ("ATNF pulsar period [ms]",     "714.4"),   # overridden by TopoBary at runtime
     ("ATNF pulse width [ms]",            "6.5"),
     ("ATNF DM [pc/cm³]",                 "26.7"),
-    ("ppm offset [ppm]",                  "-1.3"),
-    ("ppm range factor [?]",            "6"),
-    ("Threshold sigma [?]",             "1"),
+    ("Period offset [ppm]",                  "-1.3"),
+    ("Period range search factor [?]",            "1"),
+    ("Threshold sigma [?]",             "6"),
     ("RF bandwidth [MHz]",          "2.4"),
     ("RF centre frequency [MHz]",   "422"),
-    ("Roll average [?]",                "50"),
+    ("Scanning section window size [?]",                "50"),
     ("Start section [/]",               "0"),
     ("End section [/]",                 "17"),
 ]
