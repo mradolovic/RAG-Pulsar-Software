@@ -59,15 +59,15 @@ def make_info_button(parent, key, row, col):
         def toggle_edit():
             if not editing[0]:
                 text_box.config(state="normal", bg="white")
-                edit_btn.config(text="💾 Save", fg="white", bg="#115500")
+                edit_btn.config(text="[Save]", fg="white", bg="#115500")
                 editing[0] = True
             else:
                 set_info(key, text_box.get("1.0", "end-1c"))
                 text_box.config(state="disabled", bg=dialog.cget("bg"))
-                edit_btn.config(text="✏ Edit", fg="#2255aa", bg=btn_frame.cget("bg"))
+                edit_btn.config(text="[Edit]", fg="#2255aa", bg=btn_frame.cget("bg"))
                 editing[0] = False
 
-        edit_btn = tk.Button(btn_frame, text="✏ Edit", fg="#2255aa",
+        edit_btn = tk.Button(btn_frame, text="[Edit]", fg="#2255aa",
                              font=("TkDefaultFont", 9), command=toggle_edit)
         edit_btn.pack(side="left")
 
@@ -79,7 +79,7 @@ def make_info_button(parent, key, row, col):
         tk.Button(btn_frame, text="Close", command=on_close).pack(side="right")
         dialog.protocol("WM_DELETE_WINDOW", on_close)
 
-    btn = tk.Button(parent, text="ℹ", width=2, relief="flat",
+    btn = tk.Button(parent, text="i", width=2, relief="flat",
                     fg="#2255aa", font=("TkDefaultFont", 9, "bold"),
                     cursor="question_arrow", command=on_click)
     btn.grid(row=row, column=col, padx=(2, 0))
@@ -231,7 +231,7 @@ def get_topo_inputs():
 #   5. pulsar_det_an inputs follow TopoBary, in_file is auto-set if RTLChannel4bin ran
 
 def run_process(inputs, label="pipeline"):
-    append_output(f"\n🚀 Running {label}...\n")
+    append_output(f"\n>> Running {label}...\n")
     try:
         process = subprocess.Popen(
             ["python", "RAG_Pulsar_Software.py"],
@@ -320,7 +320,7 @@ def run_rtl_sdr_only():
 def run_topobary_only():
     """Run TopoBary with current GUI values and show the result, updating the period field."""
     import subprocess, sys, re
-    append_output("\n🚀 Running TopoBary...\n")
+    append_output("\n>> Running TopoBary...\n")
     obs_time  = topo_time_entry.get()
     latitude  = topo_lat_entry.get()
     longitude = topo_lon_entry.get()
@@ -359,7 +359,8 @@ print("B0329 Topocentric period =", TC)
     try:
         result = subprocess.run(
             [sys.executable, "-c", script],
-            capture_output=True, text=True)
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            universal_newlines=True)  # universal_newlines is the Py3.5 name for text=True
         append_output(result.stdout)
         if result.stderr:
             append_output(result.stderr)
@@ -380,7 +381,7 @@ print("B0329 Topocentric period =", TC)
 def run_pul_plot_only():
     # Call pul_plot.py directly — it needs no inputs, just reads its output files
     # from data/pulsar_det_an_results/ and saves PNGs to data/pul_plot_results/
-    append_output("\n🚀 Running pul_plot...\n")
+    append_output("\n>> Running pul_plot...\n")
     try:
         script_dir = ROOT_DIR
         pul_plot_path = os.path.join(script_dir, "RTL", "src", "pul_plot.py")
@@ -434,11 +435,21 @@ def on_frame_configure(event):
 def on_canvas_configure(event):
     canvas.itemconfig(canvas_window, width=event.width)
 def on_mousewheel(event):
+    # Windows / macOS: event.delta is ±120 per notch
     canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+def on_mousewheel_linux_up(event):
+    canvas.yview_scroll(-1, "units")
+
+def on_mousewheel_linux_down(event):
+    canvas.yview_scroll(1, "units")
 
 main.bind("<Configure>", on_frame_configure)
 canvas.bind("<Configure>", on_canvas_configure)
+# Cross-platform: Windows/macOS use <MouseWheel>; Linux uses Button-4/5
 canvas.bind_all("<MouseWheel>", on_mousewheel)
+canvas.bind_all("<Button-4>", on_mousewheel_linux_up)
+canvas.bind_all("<Button-5>", on_mousewheel_linux_down)
 
 
 # =============================
@@ -452,7 +463,7 @@ tk.Label(title_frame, text="RAG Višnjan Pulsar Detection Pipeline v1.0.",
 tk.Label(title_frame, text="a GUI for running Peter East's pulsar analysis software",
          font=("TkDefaultFont", 9), fg="#666666").pack(
     side="left", padx=(12, 0), anchor="s", pady=(0, 3))
-tk.Button(title_frame, text="📖 README", command=show_readme,
+tk.Button(title_frame, text="[?] README", command=show_readme,
           font=("TkDefaultFont", 9)).pack(side="right", padx=4)
 
 tk.Frame(main, height=1, bg="#cccccc").pack(fill="x", pady=(0, 8))
@@ -517,7 +528,7 @@ rtlsdr_desc = (
     "gain, and sample rate. The output file is consumed directly by RTLChannel4bin."
 )
 rtlsdr_text = tk.Text(rtlsdr_frame, height=6, wrap="word", relief="flat",
-                      bg=root.cget("bg"), font=("TkDefaultFont", 9),
+                      bg=rtlsdr_frame.cget("bg"), font=("TkDefaultFont", 9),
                       state="normal", cursor="arrow")
 rtlsdr_text.insert("1.0", rtlsdr_desc)
 rtlsdr_text.config(state="disabled")
@@ -728,7 +739,7 @@ pipeline_row.pack(fill="x", pady=(10, 2))
 pipeline_row.columnconfigure(0, weight=1)
 pipeline_row.columnconfigure(1, weight=1)
 
-tk.Button(pipeline_row, text="🚀 Run Full Pipeline", command=run_pipeline,
+tk.Button(pipeline_row, text=">> Run Full Pipeline", command=run_pipeline,
           font=("TkDefaultFont", 11, "bold"), pady=6,
           fg="white", bg="#115500").grid(row=0, column=0, sticky="ew", padx=(0, 2))
 
@@ -758,11 +769,11 @@ def clear_all_outputs():
     else:
         append_output("⚠ Output folders not found — nothing cleared.\n")
 
-tk.Button(pipeline_row, text="🗑 Clear All Program Outputs", command=clear_all_outputs,
+tk.Button(pipeline_row, text="X Clear All Program Outputs", command=clear_all_outputs,
           font=("TkDefaultFont", 11, "bold"), pady=6,
           fg="white", bg="#882200").grid(row=0, column=1, sticky="ew", padx=(2, 0))
 
-tk.Button(main, text="🗑 Clear Output Log",
+tk.Button(main, text="X Clear Output Log",
           command=lambda: output_box.delete("1.0", tk.END),
           pady=4).pack(fill="x", pady=(2, 10))
 
