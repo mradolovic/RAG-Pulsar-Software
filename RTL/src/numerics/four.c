@@ -1,5 +1,3 @@
-#include <math.h>
-
 #include "../../includes/numerics/four.h"
 
 #define SWAP(a, b)                                                                                     \

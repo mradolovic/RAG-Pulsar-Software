@@ -1,6 +1,4 @@
 #include "../../includes/numerics/psnr.h"
-#include <string.h>
-#include <math.h>
 // Simple Peak to rms noise ratio
 /*void snr(int n, double dat[]) {
     int t, a;
