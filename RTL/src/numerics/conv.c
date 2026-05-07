@@ -1,7 +1,7 @@
 #include "../../includes/numerics/conv.h"
 #include "../../includes/numerics/four.h"
 
-void conv(double sum[], float pulw, int PTS, double period, int M, double pdat[], double targ[]) {
+void conv(double sum[], float pulw, int PTS, double period, int M, double pdat[], double targ[], double fftdat[]) {
     int v, low, high;
     float prat;
 
@@ -44,7 +44,6 @@ void conv(double sum[], float pulw, int PTS, double period, int M, double pdat[]
     for (v = 0; v < PTS; v++) {
         fftdat[v] = pdat[2 * v];
     }
-    bins = PTS / M;
 
     return;
 }

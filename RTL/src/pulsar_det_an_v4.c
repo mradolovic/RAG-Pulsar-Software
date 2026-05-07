@@ -21,7 +21,6 @@ for MathCad,Excel and/or Python analysis.
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 
 #include "../includes/numerics/DMSch.h"
 #include "../includes/numerics/conv.h"
@@ -42,7 +41,7 @@ for MathCad,Excel and/or Python analysis.
 
 long int file_end;
 long int range, strt, stp;
-int num, bins, mval, PTS, Mc, mbin = 0, cd, blaf[256], blas[256], mf = 0, ms = 0, couf, cous,
+int num,  mval, PTS, Mc, mbin = 0, cd, blaf[256], blas[256], mf = 0, ms = 0, couf, cous,
                               rolav = 8, cco = 0, M, N, dmp = 1, ra, c, s;
 float thres, bnds = 0, pulw, DM, ppm, mmx = 0, nno1, nno2, dmdiv;
 double period, ppmdrift, rfband, td, f0, numper, numlog, maxsnr, Tt0, freq[256];
@@ -138,7 +137,7 @@ int main(int argc, char *argv[]) {
     clck = atof(argv[3]);    // data sample interval in ms
     period = atof(argv[4]);  // pulsar topocentric period
     M = atoi(argv[5]);       // number of compressed blocks/sections
-    bins = atoi(argv[6]);    // number of output fold bins
+    const int bins = atoi(argv[6]);    // number of output fold bins
     pulw = atof(argv[7]);    // pulsar pulse width
     DM = atof(argv[8]);      // pulsar Dispersion Measure
     ppm = atof(argv[9]);     // period ppm adjustment
@@ -491,7 +490,7 @@ int main(int argc, char *argv[]) {
             ftdat[c] = compval[num][c];
         }
         conv(ftdat, pulw, PTS, period, M, pdat,
-             targ); // outputs ftdat input blocks asconvolved and filtered fftdat blocks
+             targ, fftdat); // outputs ftdat input blocks asconvolved and filtered fftdat blocks
         spectrum(fftdat, PTS, pdat, ftdat, ftdat2); // outputs fftdat input block spectra as ftdat2
         for (c = 0; c < PTS; c += 1) {
             compval[num][c] = fftdat[c]; // now partially folded, dc restored and optimally filtered
