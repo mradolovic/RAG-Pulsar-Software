@@ -6,6 +6,12 @@ import re
 # runners.py lives in lib/, so go up one level to reach RTL/bin/
 BIN_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "RTL", "bin")
 
+# Ensure blank attenuation files exist in BIN_DIR (created on first import)
+for _blank in ("Blankf.txt", "Blanks.txt"):
+    _blank_path = os.path.join(BIN_DIR, _blank)
+    if not os.path.exists(_blank_path):
+        open(_blank_path, "w").close()
+
 def _bin(name):
     """Return the platform-appropriate binary path."""
     ext = ".exe" if sys.platform == "win32" else ".out"

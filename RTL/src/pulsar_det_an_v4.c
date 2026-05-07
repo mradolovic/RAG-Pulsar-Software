@@ -1137,6 +1137,8 @@ int main(int argc, char *argv[]) {
     printf(" Maximum SNR and Bin Number file: = %s\n", "max.txt");
     printf(" Reduced Range Raw Data file: = %s\n", "cutdat.bin");
 
+    printf("pulsar_det_an has finished");
+
     // finally close all files
     fclose(fptr);
     fclose(fptprof);
