@@ -1,6 +1,6 @@
 CC      = gcc
-#CFLAGS  = -O3 -lm -D_FILE_OFFSET_BITS=64
-CFLAGS = -O1  -D_FILE_OFFSET_BITS=64 -Wall -Wpedantic -Wextra
+CFLAGS  = -O3 -lm -D_FILE_OFFSET_BITS=64
+#CFLAGS = -O1  -D_FILE_OFFSET_BITS=64 -Wall -Wpedantic -Wextra
 LDFLAGS = -lm
 SRC_DIR = src
 BIN_DIR = bin
