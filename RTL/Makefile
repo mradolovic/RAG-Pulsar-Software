@@ -59,6 +59,9 @@ $(BIN_DIR)/spectrum.o : $(SRC_DIR)/numerics/spectrum.c $(INCLUDE_DIR)/numerics/s
 $(BIN_DIR)/targgaus.o : $(SRC_DIR)/numerics/targgaus.c $(INCLUDE_DIR)/numerics/targgaus.h $(INCLUDE_DIR)/numerics/four.h 
 	$(CC) $(CFLAGS) -c $< -o $@
 ####################################################################################################
+##object files from io directory
+$(BIN_DIR)/outputs.o : $(SRC_DIR)/io/outputs.c
+	$(CC) $(CFLAGS) -c $< -o $@
 ## object files that represent the targets
 NUMERICS = \
 	$(BIN_DIR)/four.o \
@@ -70,7 +73,11 @@ NUMERICS = \
 	$(BIN_DIR)/perSch.o \
 	$(BIN_DIR)/spectrum.o \
 	$(BIN_DIR)/targgaus.o
-$(BIN_DIR)/pulsar_det_an_v4.o : $(SRC_DIR)/pulsar_det_an_v4.c $(NUMERICS)
+
+IO = \
+	$(BIN_DIR)/outputs.o
+
+$(BIN_DIR)/pulsar_det_an_v4.o : $(SRC_DIR)/pulsar_det_an_v4.c $(NUMERICS) $(IO)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BIN_DIR)/FileTrim$(EXT): $(SRC_DIR)/FileTrim.c 
@@ -87,12 +94,12 @@ $(BIN_DIR)/RTLChannel4bin$(EXT): $(SRC_DIR)/RTLChannel4bin.c
 ####################################################################################################
 ## Finally we link the o files for the relevant targets (right now only pulsar_det_an_v4)
 
-$(BIN_DIR)/pulsar_det_an_v4$(EXT) : $(BIN_DIR)/pulsar_det_an_v4.o $(NUMERICS)
+$(BIN_DIR)/pulsar_det_an_v4$(EXT) : $(BIN_DIR)/pulsar_det_an_v4.o $(NUMERICS) $(IO)
 	$(CC) $^ -o $@ $(LDFLAGS)
 ####################################################################################################
 .PHONY: all clean
 
-all: $(BIN_DIR) $(NUMERICS) $(TARGETS)
+all: $(BIN_DIR) $(NUMERICS) $(IO) $(TARGETS)
 
 $(BIN_DIR):
 	$(MKDIR)

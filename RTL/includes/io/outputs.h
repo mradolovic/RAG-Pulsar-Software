@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+//This definition needs to be up to date
 #define NUM_OF_FILES 34
 
 typedef enum OUTPUT_FILES{
@@ -41,4 +42,6 @@ typedef enum OUTPUT_FILES{
     FPT_FREQ,
     FPT_DAT
 } OUTPUT_FILES;
+FILE **open_files();
+void close_files(FILE **files);
 #endif
