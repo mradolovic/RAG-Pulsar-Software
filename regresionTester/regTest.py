@@ -31,18 +31,20 @@ subprocess.run(["time ./pulsar_det_an_v4.out ../../data/data.bin 16 1 714.47415 
 subprocess.run(["time ./pulsar_det_an_v4.out ../../data/data.bin 16 1 714.47415 128 1024 6.5 -26.7 -1.3 6 1 2.4 422 50 0 127"], cwd="../RTL/bin/", shell=True)
 
 result = True
+flag = False
 #Okay now that we have the files we can comapre them
 for file1 in os.listdir("../RTL/bin/"):
     for file2 in os.listdir("../RTL/old_bin/"):
         #Grab all the txt files and comapre them
         if file1 == file2 and file1.endswith(".txt"):
+            flag = True
             spesific_result = filecmp.cmp("../RTL/bin/"+file1,"../RTL/old_bin/"+file2, shallow=False)
             result = result and spesific_result
             if spesific_result == False:
                 print("Difference can be found in file " + file1)
 
 #Finally output the results
-if result == True:
+if result == True and flag == True:
     print("The outputs are equal")
 else:
     print("The outputs are not equal")
