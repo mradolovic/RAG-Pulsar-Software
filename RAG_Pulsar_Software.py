@@ -3,9 +3,8 @@
     30.03.2026. Martin Ante Rogošić
 """
 
-import os
 import argparse
-from lib.funcs import compile_everything, confirm
+from lib.funcs import compile_everything
 from lib.io import console_program_chain_io
 from lib.runners import run_program_chain
 program_arg_map = {}
@@ -29,7 +28,7 @@ if __name__ == "__main__":
     parser.parse_args()
 
     #Compile everything
-    compile_everything()
+    #compile_everything()
 
 
     #Now we need to ask the user to input all of the data
