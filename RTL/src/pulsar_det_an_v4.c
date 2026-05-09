@@ -42,7 +42,7 @@ for MathCad,Excel and/or Python analysis.
 long int file_end;
 long int range, strt, stp;
 int num,  mval, PTS, Mc, mbin = 0, cd, blaf[256], blas[256], mf = 0, ms = 0, couf, cous,
-                              rolav = 8, cco = 0, M, N, dmp = 1, ra, c, s;
+                              rolav = 8, cco = 0, M, N, dmp = 1,  c, s;
 float thres, bnds = 0, pulw, DM, ppm, mmx = 0, nno1, nno2, dmdiv;
 double period, ppmdrift, rfband, td, f0, numper, numlog, maxsnr, Tt0, freq[256];
 long int cnt = 0, cnt1 = 0, xs, sm, nmax;
@@ -102,7 +102,6 @@ int main(int argc, char *argv[]) {
     int d, mm;
     float val;
 
-    srand(563); // random key
 
     /*check command line arguments*/
     if (argc != 17) {
@@ -390,7 +389,6 @@ int main(int argc, char *argv[]) {
         for (num = 0; num < N; num += 1) // N = number of FFT channels
         {
             fread(&val, 4, 1, fptr); // read 4-byte float from file
-            ra = rand();             // ensures any data zeros become finite
             comprs[num][mval] =
                 comprs[num][mval] +
                 ((double)(val *
