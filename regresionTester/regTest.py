@@ -3,7 +3,6 @@ import subprocess
 import filecmp
 
 #First we check whether there is a old_bin directory and if there is we empty it
-
 current_RTL_dir = os.listdir("../RTL/",)
 
 if current_RTL_dir.count("old_bin") == 0:
@@ -37,11 +36,36 @@ for file1 in os.listdir("../RTL/bin/"):
     for file2 in os.listdir("../RTL/old_bin/"):
         #Grab all the txt files and comapre them
         if file1 == file2 and file1.endswith(".txt"):
-            result = result and filecmp.cmp("../RTL/bin/"+file1,"../RTL/old_bin/"+file2, shallow=False)
+            spesific_result = filecmp.cmp("../RTL/bin/"+file1,"../RTL/old_bin/"+file2, shallow=False)
+            result = result and spesific_result
+            if spesific_result == False:
+                print("Difference can be found in file " + file1)
 
+#Finally output the results
 if result == True:
     print("The outputs are equal")
 else:
-    print("THe outputs are not equal")
+    print("The outputs are not equal")
 
+#Okay we have outputed the results, it would be nice now if we returend everything to as it was
+#It is not important whether the files are equal or not we can still delete all of this
+
+#Delete the new binaries 
+subprocess.run(["rm *"], cwd="../RTL/bin/", shell=True)
+
+#Now we move the old binaries to the bin files
+for file in os.listdir("../RTL/old_bin/"):
+    subprocess.run(["mv ../RTL/old_bin/" + str(file) + " ../RTL/bin/"], shell=True)
+
+#Clean up the old bin file
+subprocess.run(["rm -rf old_bin"], shell=True, cwd="../RTL/")
+
+#Delete all of the .txt files produced by the programs
+
+subprocess.run(["rm *.txt"], shell=True, cwd="../RTL/bin")
+
+subprocess.run(["touch Blanks.txt Blankf.txt"], shell=True, cwd="../RTL/bin")
+
+#If we have done everything correctly the script should tell us whether the outputs are the same 
+#and return everything to how it was
 
