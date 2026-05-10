@@ -205,7 +205,7 @@ int main(int argc, char *argv[]) {
     ratio = (double)(sect_sampls / per_sampls); // data compression ratio
 
     // Start and end section for reducing analysis section range
-    start = (long long int)((long int)((double)strt * (double)ratio + 0.5) * (double)per_sampls /
+    start = ((long int)((double)strt * (double)ratio + 0.5) * (double)per_sampls /
                             4 / N) *
             4 * N;
     end = (long long int)((long int)((double)stp * (double)ratio + 0.5) * (double)per_sampls / 4 /
@@ -541,7 +541,7 @@ int main(int argc, char *argv[]) {
     // Make allbands files for pre and DM value dispersed
     double *allbandsdd = (double *)calloc(262144, sizeof(double));
     double *allbands = (double *)calloc(262144, sizeof(double));
-    for (long int c = 0; c < PTS; c += 1) {
+    for (long int c = 0; c < 262144; c += 1) {
         for (int num = 0; num < N; num += 1) {
             allbands[c] = allbands[c] + compval[num][c];       // combine bands pre-dispersed
             allbandsdd[c] = allbandsdd[c] + compvaldd[num][c]; // combine bands DM value dispersed
