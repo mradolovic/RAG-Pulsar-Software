@@ -2,7 +2,8 @@
 #include "../../includes/numerics/four.h"
 #include <string.h>
 
-void conv(double sum[], float pulw, int PTS, double period, int M, double pdat[], double targ[], double fftdat[]) {
+void conv(double * restrict sum, float pulw, int PTS, double period, int M, double * restrict pdat,
+          double * restrict targ, double * restrict fftdat) {
     int v, low, high;
     float prat;
 
@@ -25,7 +26,7 @@ void conv(double sum[], float pulw, int PTS, double period, int M, double pdat[]
     }
     // Low and High pass filtering
     // LF Filtering
-    memset(pdat, 0, low*sizeof(double));
+    memset(pdat, 0, low * sizeof(double));
     for (v = 0; v < low; v++) {
         pdat[2 * PTS - 1 - 2 * v] = 0;
         pdat[2 * PTS - 1 - (2 * v + 1)] = 0;

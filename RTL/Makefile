@@ -1,5 +1,5 @@
 CC      = gcc
-CFLAGS  = -O3 -lm -D_FILE_OFFSET_BITS=64
+CFLAGS  = -O3 -lm -D_FILE_OFFSET_BITS=64 -fno-omit-frame-pointer -g -fopt-info-vec-missed=vec.missed -flto 
 #CFLAGS = -O1  -D_FILE_OFFSET_BITS=64 -Wall -Wpedantic -Wextra
 LDFLAGS = -lm
 SRC_DIR = src
@@ -22,7 +22,7 @@ else
 endif
 
 ## added pulsar_det_an_v4 to compile - remove after testing, 20260416, Marko Radolovic
-TARGETS = $(BIN_DIR)/FileTrim$(EXT) \
+TARGETS= $(BIN_DIR)/FileTrim$(EXT) \
           $(BIN_DIR)/RAFFT22Lg$(EXT) \
           $(BIN_DIR)/RTLChannel4bin$(EXT) \
           $(BIN_DIR)/pulsar_det_an_v4$(EXT) \

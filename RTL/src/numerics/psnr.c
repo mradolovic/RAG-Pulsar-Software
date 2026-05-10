@@ -28,7 +28,7 @@
 } // end of noise snr*/
 
 // Pulse peak to rms noise ratio
-void psnr(int bins, double dat[], int mbin, double datout[], float pulw, double outdat[]) {
+void psnr(int bins, double * restrict dat, int mbin, double * restrict datout, float pulw, double * restrict outdat) {
     int t, n1, n2;
     float mn = 0, rms = 0, mnr = 0, rmsr = 0, mx = 0, nx = 0, mb = 0;
     //TODO: 8 is hardcoded here to be the length of the datout array this is bad practice and needs to be changed

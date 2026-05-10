@@ -9,7 +9,7 @@
 
 // fast fourier transform routine - see Numerical Methods in C, WH Press et al, Cambridge University
 // Press
-void four(double data[], int PTS, int isign) {
+void four(double * restrict data, int PTS, int isign) {
     int n, mmax, m, j, istep, i, a;
     double wtemp, wr, wpr, wpi, wi, theta;
     double tempr, tempi;

@@ -7,5 +7,5 @@
 //void snr(int n, double dat[]);
 
 //improved and used snr calculation
-void psnr(int bins, double dat[], int mbin, double datout[], float pulw, double outdat[]);
+void psnr(int bins, double * restrict dat, int mbin, double * restrict datout, float pulw, double * restrict outdat);
 #endif
