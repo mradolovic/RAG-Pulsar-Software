@@ -38,7 +38,7 @@ def set_info(key, text):
 def make_info_button(parent, key, row, col):
     def on_click():
         dialog = tk.Toplevel(parent)
-        dialog.title(f"ℹ  {key}")
+        dialog.title(f"i  {key}")
         dialog.geometry("460x220")
         dialog.resizable(True, True)
 
@@ -59,15 +59,15 @@ def make_info_button(parent, key, row, col):
         def toggle_edit():
             if not editing[0]:
                 text_box.config(state="normal", bg="white")
-                edit_btn.config(text="💾 Save", fg="white", bg="#115500")
+                edit_btn.config(text="Save", fg="white", bg="#115500")
                 editing[0] = True
             else:
                 set_info(key, text_box.get("1.0", "end-1c"))
                 text_box.config(state="disabled", bg=dialog.cget("bg"))
-                edit_btn.config(text="✏ Edit", fg="#2255aa", bg=btn_frame.cget("bg"))
+                edit_btn.config(text="Edit", fg="#2255aa", bg=btn_frame.cget("bg"))
                 editing[0] = False
 
-        edit_btn = tk.Button(btn_frame, text="✏ Edit", fg="#2255aa",
+        edit_btn = tk.Button(btn_frame, text="Edit", fg="#2255aa",
                              font=("TkDefaultFont", 9), command=toggle_edit)
         edit_btn.pack(side="left")
 
@@ -79,7 +79,7 @@ def make_info_button(parent, key, row, col):
         tk.Button(btn_frame, text="Close", command=on_close).pack(side="right")
         dialog.protocol("WM_DELETE_WINDOW", on_close)
 
-    btn = tk.Button(parent, text="ℹ", width=2, relief="flat",
+    btn = tk.Button(parent, text="i", width=2, relief="flat",
                     fg="#2255aa", font=("TkDefaultFont", 9, "bold"),
                     cursor="question_arrow", command=on_click)
     btn.grid(row=row, column=col, padx=(2, 0))
@@ -110,7 +110,7 @@ def make_section_info_button(parent, key, **pack_kwargs):
     """A small ℹ button for block/section titles. Uses pack geometry."""
     def on_click():
         dialog = tk.Toplevel(parent)
-        dialog.title(f"ℹ  {key}")
+        dialog.title(f"i  {key}")
         dialog.geometry("500x220")
         dialog.resizable(True, True)
         dialog.attributes("-topmost", True)
@@ -137,7 +137,7 @@ def make_section_info_button_grid(parent, key, row, col, **grid_kwargs):
     """A small ℹ button for block/section titles. Uses grid geometry."""
     def on_click():
         dialog = tk.Toplevel(parent)
-        dialog.title(f"ℹ  {key}")
+        dialog.title(f"i  {key}")
         dialog.geometry("500x220")
         dialog.resizable(True, True)
         dialog.attributes("-topmost", True)
@@ -231,7 +231,7 @@ def get_topo_inputs():
 #   5. pulsar_det_an inputs follow TopoBary, in_file is auto-set if RTLChannel4bin ran
 
 def run_process(inputs, label="pipeline"):
-    append_output(f"\n🚀 Running {label}...\n")
+    append_output(f"\nRunning {label}...\n")
     try:
         process = subprocess.Popen(
             ["python", "RAG_Pulsar_Software.py"],
@@ -244,10 +244,10 @@ def run_process(inputs, label="pipeline"):
         append_output(output)
         if error:
             append_output(error)
-        append_output("✅ Done\n")
+        append_output("Done\n")
         return output  # returned so callers (e.g. run_pipeline) can parse it
     except Exception as e:
-        append_output(f"❌ Error: {e}")
+        append_output(f"Error: {e}")
         return ""
 
 def run_pipeline():
@@ -292,7 +292,7 @@ def run_pipeline():
             period_entry = params1_entries[4]
             period_entry.delete(0, tk.END)
             period_entry.insert(0, f"{tc_ms:.6f}")
-            append_output(f"ℹ️  ATNF period field updated to {tc_ms:.6f} ms (TopoBary result)\n")
+            append_output(f"ATNF period field updated to {tc_ms:.6f} ms (TopoBary result)\n")
 
 def run_rtlchannel_only():
     inputs = [str(var_chain.get()), "n", "y", "n"]
@@ -320,7 +320,7 @@ def run_rtl_sdr_only():
 def run_topobary_only():
     """Run TopoBary with current GUI values and show the result, updating the period field."""
     import subprocess, sys, re
-    append_output("\n🚀 Running TopoBary...\n")
+    append_output("\nRunning TopoBary...\n")
     obs_time  = topo_time_entry.get()
     latitude  = topo_lat_entry.get()
     longitude = topo_lon_entry.get()
@@ -371,16 +371,16 @@ print("B0329 Topocentric period =", TC)
             period_entry = params1_entries[4]
             period_entry.delete(0, tk.END)
             period_entry.insert(0, f"{tc_ms:.6f}")
-            append_output(f"✅ Topocentric period {tc_ms:.6f} ms written to ATNF pulsar period field.\n")
+            append_output(f"Topocentric period {tc_ms:.6f} ms written to ATNF pulsar period field.\n")
         else:
-            append_output("⚠️ Could not parse topocentric period.\n")
+            append_output("Could not parse topocentric period.\n")
     except Exception as e:
-        append_output(f"❌ Error: {e}\n")
+        append_output(f"Error: {e}\n")
 
 def run_pul_plot_only():
     # Call pul_plot.py directly — it needs no inputs, just reads its output files
     # from data/pulsar_det_an_results/ and saves PNGs to data/pul_plot_results/
-    append_output("\n🚀 Running pul_plot...\n")
+    append_output("\nRunning pul_plot...\n")
     try:
         script_dir = ROOT_DIR
         pul_plot_path = os.path.join(script_dir, "RTL", "src", "pul_plot.py")
@@ -408,9 +408,9 @@ def run_pul_plot_only():
             if os.path.exists(src):
                 shutil.move(src, os.path.join(pul_plot_results_dir, fname))
         append_output(f"Plots saved to: {pul_plot_results_dir}\n")
-        append_output("✅ Done\n")
+        append_output("Done\n")
     except Exception as e:
-        append_output(f"❌ Error: {e}")
+        append_output(f"Error: {e}")
 
 
 # -----------------------------
@@ -452,7 +452,7 @@ tk.Label(title_frame, text="RAG Višnjan Pulsar Detection Pipeline v1.0.",
 tk.Label(title_frame, text="a GUI for running Peter East's pulsar analysis software",
          font=("TkDefaultFont", 9), fg="#666666").pack(
     side="left", padx=(12, 0), anchor="s", pady=(0, 3))
-tk.Button(title_frame, text="📖 README", command=show_readme,
+tk.Button(title_frame, text="README", command=show_readme,
           font=("TkDefaultFont", 9)).pack(side="right", padx=4)
 
 tk.Frame(main, height=1, bg="#cccccc").pack(fill="x", pady=(0, 8))
@@ -523,7 +523,7 @@ rtlsdr_text.insert("1.0", rtlsdr_desc)
 rtlsdr_text.config(state="disabled")
 rtlsdr_text.pack(fill="x")
 
-tk.Button(rtlsdr_frame, text="▶ Run rtl_sdr", command=run_rtl_sdr_only,
+tk.Button(rtlsdr_frame, text="> Run rtl_sdr", command=run_rtl_sdr_only,
           fg="white", bg="#2255aa").pack(fill="x", pady=(8, 2))
 
 
@@ -575,7 +575,7 @@ topo_pep_entry.insert(0, "46473.00")
 topo_pep_entry.grid(row=7, column=1, sticky="ew")
 make_info_button(topo_frame, "TopoBary — PEP period epoch [MJD]", row=7, col=2)
 
-tk.Button(topo_frame, text="▶ Run TopoBary", command=run_topobary_only,
+tk.Button(topo_frame, text="> Run TopoBary", command=run_topobary_only,
           fg="white", bg="#2255aa").grid(
     row=8, column=0, columnspan=3, pady=(8, 2), sticky="ew")
 tk.Label(topo_frame, text="→ updates ATNF pulsar period field in pulsar_det_an",
@@ -639,7 +639,7 @@ for i, (name, default) in enumerate(params2_info):
     make_info_button(frame2, f"RTLChannel4bin — {name}", row=3+i, col=3)
 
 frame2.rowconfigure(3+len(params2_info), weight=1)
-tk.Button(frame2, text="▶ Run RTLChannel4bin", command=run_rtlchannel_only,
+tk.Button(frame2, text="> Run RTLChannel4bin", command=run_rtlchannel_only,
           fg="white", bg="#2255aa").grid(
     row=4+len(params2_info), column=0, columnspan=4, pady=(8, 2), sticky="sew")
 
@@ -666,7 +666,7 @@ params1_info = [
     ("Data clock [ms]",             "1"),
     ("ATNF pulsar period [ms]",     "714.4"),   # overridden by TopoBary at runtime
     ("ATNF pulse width [ms]",            "6.5"),
-    ("ATNF DM [pc/cm³]",                 "26.7"),
+    ("ATNF DM [pc/cm^3]",                 "26.7"),
     ("Period offset [ppm]",                  "-1.3"),
     ("Period range search factor [?]",            "1"),
     ("Threshold sigma [?]",             "6"),
@@ -685,7 +685,7 @@ for i, (name, default) in enumerate(params1_info):
     params1_entries.append(e)
     make_info_button(frame1, f"pulsar_det_an — {name}", row=2+i, col=3)
 
-tk.Button(frame1, text="▶ Run pulsar_det_an", command=run_pulsar_det_only,
+tk.Button(frame1, text="> Run pulsar_det_an", command=run_pulsar_det_only,
           fg="white", bg="#2255aa").grid(
     row=2+len(params1_info), column=0, columnspan=4, pady=(8, 2), sticky="ew")
 
@@ -715,7 +715,7 @@ pulplot_text.insert("1.0", pulplot_desc)
 pulplot_text.config(state="disabled")
 pulplot_text.grid(row=1, column=0, sticky="nsew", pady=(0, 4))
 
-tk.Button(pulplot_frame, text="▶ Run pul_plot", command=run_pul_plot_only,
+tk.Button(pulplot_frame, text="> Run pul_plot", command=run_pul_plot_only,
           fg="white", bg="#2255aa").grid(row=2, column=0, sticky="sew",
                                          pady=(8, 2), ipadx=4)
 
@@ -728,7 +728,7 @@ pipeline_row.pack(fill="x", pady=(10, 2))
 pipeline_row.columnconfigure(0, weight=1)
 pipeline_row.columnconfigure(1, weight=1)
 
-tk.Button(pipeline_row, text="🚀 Run Full Pipeline", command=run_pipeline,
+tk.Button(pipeline_row, text=">> Run Full Pipeline", command=run_pipeline,
           font=("TkDefaultFont", 11, "bold"), pady=6,
           fg="white", bg="#115500").grid(row=0, column=0, sticky="ew", padx=(0, 2))
 
@@ -751,18 +751,18 @@ def clear_all_outputs():
                     elif os.path.isdir(fpath):
                         shutil.rmtree(fpath)
                 except Exception as e:
-                    append_output(f"⚠ Could not delete {fpath}: {e}")
+                    append_output(f"Could not delete {fpath}: {e}")
             cleared.append(os.path.basename(d))
     if cleared:
-        append_output(f"🗑 Cleared: {', '.join(cleared)}\n")
+        append_output(f"Cleared: {', '.join(cleared)}\n")
     else:
-        append_output("⚠ Output folders not found — nothing cleared.\n")
+        append_output("Output folders not found — nothing cleared.\n")
 
-tk.Button(pipeline_row, text="🗑 Clear All Program Outputs", command=clear_all_outputs,
+tk.Button(pipeline_row, text="[X] Clear All Program Outputs", command=clear_all_outputs,
           font=("TkDefaultFont", 11, "bold"), pady=6,
           fg="white", bg="#882200").grid(row=0, column=1, sticky="ew", padx=(2, 0))
 
-tk.Button(main, text="🗑 Clear Output Log",
+tk.Button(main, text="[X] Clear Output Log",
           command=lambda: output_box.delete("1.0", tk.END),
           pady=4).pack(fill="x", pady=(2, 10))
 
