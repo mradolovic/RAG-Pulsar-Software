@@ -138,7 +138,7 @@ FILES AND FOLDERS
                       the descriptions shown by the More info buttons.
 
   lib/README.txt      This file. Edit freely — it is displayed by the
-                      📖 README button in the top-right corner of the GUI.
+                      README button in the top-right corner of the GUI.
 
   lib/topobary_config.txt   Saved TopoBary parameters (P0, P1, PEP). Written
                              automatically when TopoBary is run, and read by
