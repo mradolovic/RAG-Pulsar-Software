@@ -274,9 +274,3 @@ Suggested areas:
 - GUI improvements
 - Data pipeline enhancements
 - Documentation
-
-<<<<<<< HEAD
----
-=======
----
->>>>>>> 5140bad (change big readme)
