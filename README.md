@@ -37,7 +37,6 @@ Using `astropy` for:
 ## Visualization
 
 - Real-time and static plotting with Matplotlib
-- Image handling with Pillow
 - Numerical analysis with NumPy
 
 ## GUI Interface
@@ -119,7 +118,7 @@ cd RAG-Pulsar-Software
 
 ## 2. Create a Virtual Environment
 
-ToDo
+If you want to run the program in a virtual enviroment, you can do so with Python's 'venv'
 
 ## 3. Install Python Dependencies
 
@@ -138,6 +137,8 @@ cd RTL
 make all
 ```
 
+The makefile contains the compilation commands for all necessary C programs.
+
 Generated binaries should appear in:
 
 ```text
@@ -155,36 +156,13 @@ python gui.py
 ```
 
 ---
-
-# Development Notes
-
-## Python
-
-The project uses:
-
-- `numpy` for numerical processing
-- `matplotlib` for plotting
-- `Pillow` for image manipulation
-- `astropy` for astronomy calculations
-
-## C Components
-
-The `RTL/` directory contains native processing utilities compiled with GCC.
-
-Most binaries link against:
-
-- `libm` (`-lm`)
-
----
-
 # Example Workflow
 
-1. Acquire SDR or pulsar-related data
-2. Process raw data using C utilities
-3. Execute processing chains through Python orchestration
-4. Visualize results using Matplotlib
-5. Perform astronomical coordinate analysis with Astropy
-
+1. Record data from an SDR in IQ format
+2. Channelise the data using RTLChannel4bin
+3. Perform astronomical coordinate transformation with Astropy
+4. Analyse the data using pulsar_det_an
+5. Visualize results using Matplotlib
 ---
 
 # Troubleshooting
@@ -225,15 +203,6 @@ sudo pacman -S base-devel
 
 ---
 
-# Recommended Development Environment
-
-- OS: Arch Linux
-- Python: 3.11+
-- GCC: Latest stable
-- Virtual environments strongly recommended
-
----
-
 # Contributing
 
 Contributions, bug reports, and improvements are welcome.
@@ -247,28 +216,3 @@ Suggested areas:
 - Documentation
 
 ---
-
-# License
-
-Add your preferred license here.
-
-Examples:
-
-- MIT
-- GPLv3
-- Apache 2.0
-
----
-
-# Acknowledgements
-
-Built using:
-
-- Python
-- GCC
-- NumPy
-- Matplotlib
-- Astropy
-- Pillow
-- Tkinter
-
