@@ -1,0 +1,1 @@
+Geographic latitude of the telescope in decimal degrees. Combined with longitude, this pins the observer's position on Earth so the barycentric velocity correction is computed correctly for your site.

@@ -1,0 +1,1 @@
+The dispersion measure of the pulsar in parsecs per cubic centimetre (default 26.76 for B0329+54). This is the centre point of the DM search and the value used to de-disperse the folded profile.

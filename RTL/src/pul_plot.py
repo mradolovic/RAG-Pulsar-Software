@@ -1,14 +1,29 @@
 # -*- coding: utf-8 -*-
-# importing the required module 
+# importing the required module
+import sys
+import argparse
+
+# Parse --no-show flag before importing pyplot so we can set the backend first
+_parser = argparse.ArgumentParser()
+_parser.add_argument("--no-show", action="store_true", help="Save plots to files only, do not display interactively")
+_args, _ = _parser.parse_known_args()
+
+if _args.no_show:
+    import matplotlib
+    matplotlib.use("Agg")  # non-interactive backend — no display needed
+
 import numpy as np
-import matplotlib.pyplot as plt#
+import matplotlib.pyplot as plt
 import matplotlib.image as img
-#from matplotlib.lines 
 import time
-
 import math
+from PIL import Image
 
-from PIL import Image 
+def _show():
+    """Call plt.show() only when running interactively."""
+    if not _args.no_show:
+        _show()
+
 timestr=time.strftime("%Y%m%d-%H%M%S")
 print (timestr) 
 
@@ -86,9 +101,12 @@ loadfolarray = np.loadtxt('secavfol.txt')#rolling average range
 
 
 loadsavarray = np.loadtxt('secavsnr.txt')#section group average
-savst0 = loadsavarray[0:sections, 0]# section average centre bin number
-savsnr = loadsavarray[0:sections, 1]# section average value
-# section average value
+if loadsavarray.ndim == 2:
+    savst0 = loadsavarray[0:sections, 0]# section average centre bin number
+    savsnr = loadsavarray[0:sections, 1]# section average value
+else:
+    savst0 = np.zeros(sections)
+    savsnr = np.zeros(sections)
 
 loadpuldatarray = np.loadtxt('puldatd.txt')
 puld1 = loadpuldatarray[0:sections, int(maxbin)]
@@ -176,7 +194,7 @@ plt.xlabel('Period Range ' +rangp)
 
 plt.savefig('pixel_plot.png') # save a plot 
 #plt.show(pixel_plot)# show plot
-plt.show()
+_show()
 pixel2_plot = plt.figure()
 pixel2_plot.add_subplot() 
 pixel2_plot.set_figwidth(5)
@@ -190,7 +208,7 @@ plt.xlabel('Bin Number/10')
 plt.ylabel('Section Number')
 plt.savefig('pixel2_plot.png')# save a plot
 #plt.show(pixel2_plot)# show plot
-plt.show()
+_show()
 
 pixel3_plot = plt.figure()  
 pixel3_plot.add_subplot()
@@ -207,7 +225,7 @@ plt.xlabel('Band Number x 4')
 plt.savefig('pixel3_plot.png')
 #plt.show(pixel3_plot)
 
-plt.show()
+_show()
 
 
 fig = plt.figure(figsize =(16, 12))
@@ -342,7 +360,7 @@ def get_concat_h(im1, im2):
     return dst3
 get_concat_h(im1, im2).save('concat3_v.png')
 testImage = img.imread('concat3_v.png')
-plt.show()
+_show()
 
 testImage = img.imread('concat3_v.png')
 plt.figure(figsize=(20.5, 20.5))
@@ -351,4 +369,4 @@ plt.figure(figsize=(20.5, 20.5))
 plt.imshow(testImage,interpolation='nearest')
 
 
-plt.show()
+_show()

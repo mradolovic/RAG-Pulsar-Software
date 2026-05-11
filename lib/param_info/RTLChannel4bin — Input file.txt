@@ -1,0 +1,1 @@
+The raw 8-bit IQ binary file recorded by the RTL-SDR dongle (.bin). Each byte is one I or Q sample interleaved, at the sample rate set by the SDR.
