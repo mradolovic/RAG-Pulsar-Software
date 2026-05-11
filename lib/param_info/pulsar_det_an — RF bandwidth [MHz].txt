@@ -1,0 +1,1 @@
+The total received RF bandwidth in megahertz (default 2.4 MHz). Used with the centre frequency to calculate the per-channel frequency values needed for DM-based de-dispersion across the band.

@@ -1,0 +1,1 @@
+A default range -25ppm to +25ppm period rate (p-dot) search range is automatically adjusted so that the 2-D period /p-dot plot produces peak response sloped at -45 degrees.
