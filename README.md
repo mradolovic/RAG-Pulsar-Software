@@ -275,4 +275,8 @@ Suggested areas:
 - Data pipeline enhancements
 - Documentation
 
+<<<<<<< HEAD
 ---
+=======
+---
+>>>>>>> 5140bad (change big readme)
