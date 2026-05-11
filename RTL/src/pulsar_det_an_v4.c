@@ -33,14 +33,8 @@ for MathCad,Excel and/or Python analysis.
 #include "../includes/numerics/spectrum.h"
 #include "../includes/numerics/targgaus.h"
 
-
-long int file_end;
-long int range, strt, stp;
-int num,  mval, PTS, Mc, mbin = 0, cd, blaf[256], blas[256], mf = 0, ms = 0, couf, cous,
-                              rolav = 8, cco = 0, M, N, dmp = 1,  c, s;
-float thres, bnds = 0, pulw, DM, ppm, mmx = 0, nno1, nno2, dmdiv;
-double period, ppmdrift, rfband, td, f0, numper, numlog, maxsnr, Tt0, freq[256];
-long int cnt = 0, cnt1 = 0, xs, sm, nmax;
+int blaf[256], blas[256];
+double   numlog, maxsnr, Tt0, freq[256];
 double comprs[32][262144], comprc[32][262144], ave[32][4096], avec[32][4096], rms[32][4096],
     mean[32], std[32], av[32][4096], rm[32][4096];
 double compval[32][262144], compvald[32][262144], compvaldd[32][262144], spect[32][262144],
@@ -49,21 +43,16 @@ double bndcum[32][4096], ftdat[1048576], ftdat2[1048576], allbands[262144], allb
     allbandsdd[262144], spallbands[262144];
 double ddispbands[256][131072], datout[8], dfold[4096], ddfold[256][4096], dfoldd[4096],
     dfolddd[4096], outdat[4096], fftdat[1048576];
-double zero = 0.000001, bstdmprof[4096], bstdmprf[4096], blasec[256], pdat[1048576], targ[1048576],
-       foldatdd[256][4096], puldatd[256][4096];
-double clck, sumt[4096], count[4096], outsumt[100][4096], pkdat[4096], sectsnr[256][8],
-    secavsnr[256][8], foldat[256][4096], foldatd[256][4096];
-
-FILE *fptr;
+double bstdmprof[4096], bstdmprf[4096], blasec[256], pdat[1048576], targ[1048576],
+    foldatdd[256][4096], puldatd[256][4096];
+double sumt[4096], count[4096], outsumt[100][4096], pkdat[4096], sectsnr[256][8], secavsnr[256][8],
+    foldat[256][4096], foldatd[256][4096];
 
 int main(int argc, char *argv[]) {
-    long int aux = 0, start = 0, end = 127;
-    long int c;
-    double b;
-    int d, mm;
+    long int end = 127;
     float val;
     FILE **files = open_files();
-
+    FILE *fptr;
 
     /*check command line arguments*/
     if (argc != 17) {
@@ -85,7 +74,7 @@ int main(int argc, char *argv[]) {
     }
     fclose(files[FPT_BLNKF]);
 
-    if ((files[FPT_BLNKS]= fopen("Blanks.txt", "r")) == NULL) {
+    if ((files[FPT_BLNKS] = fopen("Blanks.txt", "r")) == NULL) {
         printf("No Section Attenuation file %s. \n", "Blanks.txt");
         exit(0);
     }
@@ -94,23 +83,23 @@ int main(int argc, char *argv[]) {
     printf("\nInput Data File = %s\n", argv[1]);
 
     // Read command line parameters
-    N = atoi(argv[2]);       // number of FFT channels
-    clck = atof(argv[3]);    // data sample interval in ms
-    period = atof(argv[4]);  // pulsar topocentric period
-    M = atoi(argv[5]);       // number of compressed blocks/sections
-    const int bins = atoi(argv[6]);    // number of output fold bins
-    pulw = atof(argv[7]);    // pulsar pulse width
-    DM = atof(argv[8]);      // pulsar Dispersion Measure
-    ppm = atof(argv[9]);     // period ppm adjustment
-    nno1 = atof(argv[11]);   // period ppm divisor
-    rfband = atof(argv[12]); // rf bandwidth
-    f0 = atof(argv[13]);     // rf centre
-    rolav = atoi(argv[14]);  // number of rolling average sections
-    strt = atoi(argv[15]);   // start number of wanted sections
-    stp = atoi(argv[16]);    // end number of wanted sections
-    thres = atof(argv[10]);  // spike threshold
+    const int N = atoi(argv[2]);          // number of FFT channels
+    const double clck = atof(argv[3]);    // data sample interval in ms
+    double period = atof(argv[4]);        // pulsar topocentric period
+    const int M = atoi(argv[5]);          // number of compressed blocks/sections
+    const int bins = atoi(argv[6]);       // number of output fold bins
+    const float pulw = atof(argv[7]);     // pulsar pulse width
+    float DM = atof(argv[8]);             // pulsar Dispersion Measure
+    const float ppm = atof(argv[9]);      // period ppm adjustment
+    float nno1 = atof(argv[11]);          // period ppm divisor
+    const double rfband = atof(argv[12]); // rf bandwidth
+    const double f0 = atof(argv[13]);     // rf centre
+    const int rolav = atoi(argv[14]);     // number of rolling average sections
+    const long int strt = atoi(argv[15]); // start number of wanted sections
+    long int stp = atoi(argv[16]);        // end number of wanted sections
+    const float thres = atof(argv[10]);   // spike threshold
 
-    PTS = M * bins;
+    const int PTS = M * bins;
 
     // some error correction
     if (N > 100) {
@@ -128,6 +117,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Read attenuated frequency channels input data file
+    int mf = 0, couf = 0;
     files[FPT_BLNKF] = fopen("Blankf.txt", "r");
     while (fscanf(files[FPT_BLNKF], "%d", &mf) != EOF) {
         blaf[couf] = mf;
@@ -135,14 +125,14 @@ int main(int argc, char *argv[]) {
     }
     fclose(files[FPT_BLNKF]);
     printf("Blanked Bands: ");
-    for (d = 0; d < couf; d++) {
+    for (int d = 0; d < couf; d++) {
         printf("%d ", (int)(blaf[d]));
     }
 
     // Read attenuated sections input data file
     files[FPT_BLNKS] = fopen("Blanks.txt", "r");
-    cous = 0;
-    for (mm = 0; mm < M; mm++)
+    int cous = 0, ms = 0;
+    for (int mm = 0; mm < M; mm++)
         blasec[mm] = 1;
     while (fscanf(files[FPT_BLNKS], "%d", &ms) != EOF) {
         blas[cous] = ms;
@@ -151,13 +141,14 @@ int main(int argc, char *argv[]) {
     }
     fclose(files[FPT_BLNKS]);
     printf("\nBlanked Sections: ");
-    for (d = 0; d < cous; d++) {
+    for (int d = 0; d < cous; d++) {
         printf("%d ", (int)(blas[d]));
     }
 
     // Output Data file names and definitions
 
     // Copes with lower rf sideband systems
+    int dmp = 1;
     if (DM < 0)
         dmp = -1;
     DM = DM * (float)dmp;
@@ -167,8 +158,8 @@ int main(int argc, char *argv[]) {
     period = (double)period * (1.0 + (double)ppm / 1000000);
 
     // Parameter adjustments
-    nno1 = 1 / nno1; // period ppm multiplier
-    dmdiv = 10;      // DM range divider
+    nno1 = 1 / nno1;        // period ppm multiplier
+    const float dmdiv = 10; // DM range divider
 
     // Information print
     printf("\nThreshold = %.1f x rms \nPeriod Search Range Multiplier = %.2f\n", thres, nno1);
@@ -182,17 +173,16 @@ int main(int argc, char *argv[]) {
 
     /*find length of input file*/
     fseeko(fptr, 0L, SEEK_END);
-    file_end = (long long)(ftello(fptr));
+    const long int file_end = ftello(fptr) / 4;
 
     // print header
     printf("Input file bytes = %ld	\n", (long)file_end);
 
     // adjust for 32=bit binary input data
-    file_end = (long long int)((long int)file_end / 4); // 4-byte binary data
     printf("No. Data Samples = %ld\n", (long)file_end);
 
     // Expected dispersion delay across RF band
-    td = 8.3 * rfband * DM * 1000000 / f0 / f0 / f0;
+    const double td = 8.3 * rfband * DM * 1000000 / f0 / f0 / f0;
     printf("RF Centre = %.1f MHz,	RF Bandwidth = %.1f MHz\n", f0, rfband);
     printf("DM Band Delay = %.3fms, Equivalent No: of bins = %.3f\n", td, (td * bins / period));
 
@@ -227,14 +217,14 @@ int main(int argc, char *argv[]) {
     ratio = (double)(sect_sampls / per_sampls); // data compression ratio
 
     // Start and end section for reducing analysis section range
-    start = (long long int)((long int)((double)strt * (double)ratio + 0.5) * (double)per_sampls /
-                            4 / N) *
-            4 * N;
+    long int start =
+        (long int)((long int)((double)strt * (double)ratio + 0.5) * (double)per_sampls / 4 / N) *
+        4 * N;
     end = (long long int)((long int)((double)stp * (double)ratio + 0.5) * (double)per_sampls / 4 /
                           N) *
           4 * N;
-    nmax = (long long int)(end - start); // No. data file bytes
-    nmax = nmax / 4 / N / M;             // No. of compressed pulsar data points
+    const long int nmax = (long long int)(end - start) / 4 / N / M; // No. data file bytes
+    // nmax = nmax / 4 / N / M;             // No. of compressed pulsar data points
 
     // printf("ratio = %f\n",ratio);
     printf("Start Byte = %ld\n", start);
@@ -256,7 +246,7 @@ int main(int argc, char *argv[]) {
     // Duration of new data file
     double Tt = clck * (double)(end - start) / (double)N;
     printf("Working file duration = %.0f secs\n", Tt / 1000);
-    numper = (int)(Tt / period); // number of periods in file
+    double numper = (int)(Tt / period); // number of periods in file
 
     // Calculating the p-dot exponent
     numlog = log10(numper);
@@ -265,7 +255,7 @@ int main(int argc, char *argv[]) {
            (int)numlog); // chosen to produce a -45 degree slope in 2D period/P-dot plot
 
     // Drift at file end due to ppm adjustment setting
-    ppmdrift = ppm * Tt / 1000000;
+    const double ppmdrift = ppm * Tt / 1000000;
     printf("ppm adjustment = %.2f\n", ppm);
     printf("Max Pulse ppm drift = %.2f ms\n", ppmdrift);
 
@@ -278,14 +268,16 @@ int main(int argc, char *argv[]) {
     // Data Text Record
     fprintf(files[FPT_TEXT], "Pulsar Data	\n");
     fprintf(files[FPT_TEXT], "Input Data file: = %s\n", argv[1]);
-    fprintf(files[FPT_TEXT], "Threshold = %.1f x rms	Period Range Multiplier = %.2f\n", thres, 1 / nno1);
+    fprintf(files[FPT_TEXT], "Threshold = %.1f x rms	Period Range Multiplier = %.2f\n", thres,
+            1 / nno1);
     fprintf(files[FPT_TEXT], "Pulsar Period = %.6f ms	\n", period);
     fprintf(files[FPT_TEXT], "Data clock= %.2f ms \n", clck);
     fprintf(files[FPT_TEXT], "Pulsar Pulse Width = %.2f ms	\n", pulw);
     fprintf(files[FPT_TEXT], "Pulsar Dispersion Measure = %.2f	\n", DM);
     fprintf(files[FPT_TEXT], "Input file bytes = %ld	\n", file_end * 2);
     fprintf(files[FPT_TEXT], "RF Centre = %.1f MHz,	RF Bandwidth = %.1f MHz\n", f0, rfband);
-    fprintf(files[FPT_TEXT], "DM Band Delay = %.3fms, No. Delay bins = %.3f\n", td, (td * bins / period));
+    fprintf(files[FPT_TEXT], "DM Band Delay = %.3fms, No. Delay bins = %.3f\n", td,
+            (td * bins / period));
     fprintf(files[FPT_TEXT], "No. Data Samples = %ld\n", file_end);
     fprintf(files[FPT_TEXT], "No: FFT Bands = %d\n", N);
     fprintf(files[FPT_TEXT], "Input Data per FFT Band = %ld\n", file_end / N);
@@ -308,15 +300,16 @@ int main(int argc, char *argv[]) {
 
     // Serially fold data into M sections -
     // http://www.y1pwe.co.uk/RAProgs/LowSNRCorrelationSearch.pdf
-    for (aux = 0; aux < (nmax * M); aux += 1) { // nmax equals the number of data sets
+    long int cnt = 0;
+    for (long int aux = 0; aux < (nmax * M); aux += 1) { // nmax equals the number of data sets
 
-        xs = (long int)((double)aux / (double)nmax);
-        b = (double)aux * (double)clck / (double)period;
-        sm = (long int)(((double)b - (double)((long int)b)) * (double)bins);
-        mval = (int)((long int)sm + (long int)xs * (long int)bins);
+        const long int xs = (double)aux / (double)nmax;
+        const double b = (double)aux * (double)clck / (double)period;
+        const long int sm = (long int)(((double)b - (double)((long int)b)) * (double)bins);
+        const int mval = (int)((long int)sm + (long int)xs * (long int)bins);
 
         // Read input data FFT blocks
-        for (num = 0; num < N; num += 1) // N = number of FFT channels
+        for (int num = 0; num < N; num += 1) // N = number of FFT channels
         {
             fread(&val, 4, 1, fptr); // read 4-byte float from file
             comprs[num][mval] =
@@ -325,8 +318,7 @@ int main(int argc, char *argv[]) {
                           10)); // fold into
                                 // bins//comprs[num][mval]=comprs[num][mval]+(double)(val-128)*100.0;
             comprc[num][mval] = comprc[num][mval] + 1; // count bin entries
-            cnt1 = cnt1 + 1;
-            fwrite(&val, 4, 1, files[FPT_CUT]); // write bin file - selected sections
+            fwrite(&val, 4, 1, files[FPT_CUT]);        // write bin file - selected sections
         }
         cnt = cnt + 1;
     }
@@ -343,7 +335,7 @@ int main(int argc, char *argv[]) {
 
     // Check no count entries are zero
     int bi;
-    for (num = 0; num < N; num += 1) {
+    for (int num = 0; num < N; num += 1) {
         for (bi = 0; bi < M * bins; bi += 1) {
             if (comprc[num][bi] == 0)
                 comprc[num][bi] = 1.0;
@@ -352,11 +344,11 @@ int main(int argc, char *argv[]) {
 
     // Calculate M section folded FFT channel data and section mean and rms;  M = number of
     // sections;
-    for (num = 0; num < N; num += 1) // N = number of FFT channels
+    for (int num = 0; num < N; num += 1) // N = number of FFT channels
     {
-        for (c = 0; c < PTS; c += 1) // M = number of sections
+        for (long int c = 0; c < PTS; c += 1) // M = number of sections
         {
-            Mc = c / bins;
+            const int Mc = c / bins;
             compval[num][c] =
                 (float)(comprs[num][c] / comprc[num][c]); // normalise raw partially folded data
             ave[num][Mc] = ave[num][Mc] + (float)compval[num][c] / (float)bins; // section average
@@ -366,11 +358,11 @@ int main(int argc, char *argv[]) {
     }
 
     // DC restore sections - removes long-term  receiver gain drift
-    for (num = 0; num < N; num += 1) // number of FFT channels
+    for (int num = 0; num < N; num += 1) // number of FFT channels
     {
-        for (c = 0; c < PTS; c += 1) // M = number of sections; bins = number of fold bins
+        for (long int c = 0; c < PTS; c += 1) // M = number of sections; bins = number of fold bins
         {
-            Mc = c / bins;
+            const int Mc = c / bins;
             compval[num][c] = compval[num][c] - ave[num][Mc]; // dc restored section fold data
             avec[num][Mc] = avec[num][Mc] + compval[num][c];  // new section mean value
         }
@@ -378,7 +370,7 @@ int main(int argc, char *argv[]) {
 
     // Calculate DC restored mean and rms for each frequency band
     int m;
-    for (num = 0; num < N; num += 1) {
+    for (int num = 0; num < N; num += 1) {
         for (m = 0; m < (int)M; m += 1) {
             mean[num] = mean[num] + ave[num][m] / M; // dc restored frequency channel average
             std[num] = std[num] + rms[num][m] / M;   // dc restored frequency channel rms
@@ -389,21 +381,21 @@ int main(int argc, char *argv[]) {
 
     // Print Band mean and standard deviation values
     printf("\n Band Mean \n");
-    for (num = 0; num < N; num += 1) {
+    for (int num = 0; num < N; num += 1) {
         printf("	%.1f", (float)mean[num]);
         fprintf(files[FPT_FREQ], "%f\n",
                 (float)(freq[num])); /* write frequency band mean data to the output text file */
     }
     printf("\n");
     printf("\n Standard Deviation \n");
-    for (num = 0; num < N; num += 1) {
+    for (int num = 0; num < N; num += 1) {
         printf("	%.1f", (float)std[num]);
     }
     printf("\n");
 
     // Build section folded, DC restored raw text data file
-    for (c = 0; c < PTS; c += 1) {
-        for (num = 0; num < N; num += 1) {
+    for (long int c = 0; c < PTS; c += 1) {
+        for (int num = 0; num < N; num += 1) {
             fprintf(files[FPT_RAW], "	%f",
                     (float)(compval[num][c])); /* write txt raw data to the output text file */
         }
@@ -413,14 +405,14 @@ int main(int argc, char *argv[]) {
     // printf("M1=%d	N=%d	bins=%d\n",M,N,bins);
 
     // Matched-filter data bandwidth to just pass pulsar pulse - FFT data and Convolve bands
-    for (num = 0; num < N; num += 1) { // printf("	M1=%d	N=%d	bins=%d\n",M,N,bins);
-        for (c = 0; c < PTS; c += 1) {
+    for (int num = 0; num < N; num += 1) { // printf("	M1=%d	N=%d	bins=%d\n",M,N,bins);
+        for (long int c = 0; c < PTS; c += 1) {
             ftdat[c] = compval[num][c];
         }
-        conv(ftdat, pulw, PTS, period, M, pdat,
-             targ, fftdat); // outputs ftdat input blocks asconvolved and filtered fftdat blocks
-        spectrum(fftdat, PTS, pdat,  ftdat2); // outputs fftdat input block spectra as ftdat2
-        for (c = 0; c < PTS; c += 1) {
+        conv(ftdat, pulw, PTS, period, M, pdat, targ,
+             fftdat); // outputs ftdat input blocks asconvolved and filtered fftdat blocks
+        spectrum(fftdat, PTS, pdat, ftdat2); // outputs fftdat input block spectra as ftdat2
+        for (long int c = 0; c < PTS; c += 1) {
             compval[num][c] = fftdat[c]; // now partially folded, dc restored and optimally filtered
             spect[num][c] = ftdat2[c];
             spallbands[c] = spallbands[c] + (spect[num][c]); // combine bands all bands spectrum
@@ -431,9 +423,9 @@ int main(int argc, char *argv[]) {
 
     // Calculate FFT channel data and section match-filtered mean and mean square
 
-    for (num = 0; num < N; num += 1) {
-        for (c = 0; c < PTS; c += 1) {
-            Mc = c / bins;
+    for (int num = 0; num < N; num += 1) {
+        for (long int c = 0; c < PTS; c += 1) {
+            const int Mc = c / bins;
             // printf("%d	%d\n",c,Mc);
             av[num][Mc] = av[num][Mc] + (float)(compval[num][c]) / bins;
             rm[num][Mc] =
@@ -442,7 +434,7 @@ int main(int argc, char *argv[]) {
     }
 
     for (m = 0; m < M; m += 1) {
-        for (num = 0; num < N; num += 1) {
+        for (int num = 0; num < N; num += 1) {
             rm[num][m] = (double)sqrt((double)rm[num][m] -
                                       (double)(av[num][m] * (double)av[num][m])); // now true rms
         }
@@ -450,15 +442,15 @@ int main(int argc, char *argv[]) {
 
     // Print Post DC correction and filtering mid-section, band rms, mean
     printf("\n Post DC correction and filtering band rms, mean \n");
-    for (num = 0; num < N; num += 1) { // Mc=(int)(c/bins);
+    for (int num = 0; num < N; num += 1) { // Mc=(int)(c/bins);
         printf("	%.2f, %.2f", (double)rm[num][M / 2], (double)av[num][M / 2]);
     }
     printf("\n");
 
     // Final DC restore
-    for (num = 0; num < N; num += 1) {
-        for (c = 0; c < PTS; c += 1) {
-            Mc = c / bins;
+    for (int num = 0; num < N; num += 1) {
+        for (long int c = 0; c < PTS; c += 1) {
+            const int Mc = c / bins;
             compval[num][c] = (compval[num][c] - av[num][Mc]);
         }
     }
@@ -466,9 +458,9 @@ int main(int argc, char *argv[]) {
     // Limit peaks - needed to ensure compressed file is not degraded by possible section RFI spikes
     // limits section band if greater than X standard deviations
     float X = (float)thres;
-    for (num = 0; num < N; num += 1) {
-        for (c = 0; c < PTS; c += 1) {
-            Mc = c / bins;
+    for (int num = 0; num < N; num += 1) {
+        for (long int c = 0; c < PTS; c += 1) {
+            const int Mc = c / bins;
             if (compval[num][c] > (X * rm[num][Mc])) {
                 compval[num][c] = X * rm[num][Mc];
             }
@@ -480,8 +472,8 @@ int main(int argc, char *argv[]) {
     printf("threshold = %.1f \n", X);
 
     // Build outdat.txt - compressed, match-filtered, 16-channel data text file
-    for (c = 0; c < PTS; c += 1) {
-        for (num = 0; num < N; num += 1) {
+    for (long int c = 0; c < PTS; c += 1) {
+        for (int num = 0; num < N; num += 1) {
             fprintf(files[FPT_OUT], "	%f",
                     (float)(compval[num][c])); /* write txt data to the output text file */
         }
@@ -489,9 +481,9 @@ int main(int argc, char *argv[]) {
     }
 
     // Attenuate Blankf.txt frequency channels
-    for (c = 0; c < PTS ; c += 1) {
+    for (long int c = 0; c < PTS; c += 1) {
         if (couf >= 1) {
-            for (d = 0; d < couf; d += 1) {
+            for (int d = 0; d < couf; d += 1) {
                 compval[blaf[d]][c] = (compval[blaf[d]][c]) / 100;
             }
         }
@@ -499,10 +491,10 @@ int main(int argc, char *argv[]) {
 
     // Attenuate Blanks.txt sections
     if (cous >= 0) {
-        for (d = 0; d < cous; d += 1) {
-            for (num = 0; num < N; num += 1) {
-                for (c = 0; c < PTS; c += 1) {
-                    Mc = c / bins;
+        for (int d = 0; d < cous; d += 1) {
+            for (int num = 0; num < N; num += 1) {
+                for (long int c = 0; c < PTS; c += 1) {
+                    const int Mc = c / bins;
                     if (Mc == blas[d]) {
                         compval[num][c] = compval[num][c] / 100;
                     }
@@ -516,8 +508,8 @@ int main(int argc, char *argv[]) {
     float delta = 1.f * dmp * td * (float)(bins) * (float)(N - 1) / (float)N / period /
                   (float)N; // time delay/sub-band
     printf("De-disperse Time Delay/sub-band = %.3f ms\n", delta);
-    for (num = 0; num < N; num += 1) {
-        for (c = 0; c < PTS; c += 1) {
+    for (int num = 0; num < N; num += 1) {
+        for (long int c = 0; c < PTS; c += 1) {
             compvaldd[num][c] =
                 compval[num][(c + (int)(((float)((num - ((float)(N) / 2.0 - 0.5))) * delta)) +
                               M * bins) %
@@ -526,13 +518,15 @@ int main(int argc, char *argv[]) {
     }
 
     // SNR per Band - Build bandS.txt
+    int mbin = 0;
+    float mmx = 0;
     printf("\n SNR per Band\n");
-    for (num = 0; num < N; num += 1) {
-        for (d = 0; d < bins; d += 1) {
+    for (int num = 0; num < N; num += 1) {
+        for (int d = 0; d < bins; d += 1) {
             dfold[d] = 0;
         }
-        for (s = 0; s < M; s += 1) {
-            for (d = 0; d < bins; d += 1) {
+        for (int s = 0; s < M; s += 1) {
+            for (int d = 0; d < bins; d += 1) {
                 dfold[d] = dfold[d] + compval[num][s * bins + d];
             } // outsumt[num][d];outdat[d]=0;
         }
@@ -540,7 +534,7 @@ int main(int argc, char *argv[]) {
         if (datout[0] > mmx) {
             mmx = datout[0];
         }
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             bandat[num][d] = outdat[d];
         }
         printf("Band = %d 	SNR =  %.2f	bin = %d\n", num, datout[0], (int)datout[1]);
@@ -550,8 +544,8 @@ int main(int argc, char *argv[]) {
     printf("\n");
 
     // Build De-dispersed bandat.txt band folds
-    for (num = 0; num < N; num += 1) {
-        for (d = 0; d < bins; d += 1) {
+    for (int num = 0; num < N; num += 1) {
+        for (int d = 0; d < bins; d += 1) {
             fprintf(files[FPT_BNDD], "	%.3f",
                     bandat[num][d]); /* write band fold SNR data to the bandat.txt file */
         }
@@ -559,8 +553,8 @@ int main(int argc, char *argv[]) {
     }
 
     // Make allbands files for pre and DM value dispersed
-    for (c = 0; c < PTS; c += 1) {
-        for (num = 0; num < N; num += 1) {
+    for (long int c = 0; c < PTS; c += 1) {
+        for (int num = 0; num < N; num += 1) {
             allbands[c] = allbands[c] + compval[num][c];       // combine bands pre-dispersed
             allbandsdd[c] = allbandsdd[c] + compvaldd[num][c]; // combine bands DM value dispersed
         }
@@ -571,8 +565,8 @@ int main(int argc, char *argv[]) {
     int emax = 0, dmx = 101,
         dmn = 50; // max and min of e range; dmp is DM polarity; dmdiv is range divider
     for (int e = 0; e < dmx; e += 1) {
-        for (num = (-N / 2); num < (N / 2); num += 1) {
-            for (c = 0; c < PTS; c += 1) {
+        for (int num = (-N / 2); num < (N / 2); num += 1) {
+            for (long int c = 0; c < PTS; c += 1) {
                 ddispbands[e][c] =
                     ddispbands[e][c] +
                     compval[num + N / 2][(int)((c + 2 * M * bins +
@@ -586,13 +580,13 @@ int main(int argc, char *argv[]) {
 
     // Dispersion Search
     for (int e = 0; e < dmx; e += 1) {
-        for (d = 0; d < (int)bins; d += 1) {
+        for (int d = 0; d < (int)bins; d += 1) {
             ddfold[e][d] = 0;
         }
     }
     for (int e = 0; e < dmx; e += 1) {
-        for (c = 0; c < M; c += 1) {
-            for (d = 0; d < bins; d += 1) {
+        for (long int c = 0; c < M; c += 1) {
+            for (int d = 0; d < bins; d += 1) {
                 ddfold[e][d] = ddfold[e][d] + ddispbands[e][(c * bins + d) % (M * bins)];
             }
         }
@@ -603,7 +597,7 @@ int main(int argc, char *argv[]) {
     mmx = 0;
     printf("\n Dispersion Search \n");
     for (int e = 0; e < dmx; e += 1) {
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             dfold[d] = ddfold[e][d];
         }
         psnr(bins, dfold, mbin, datout, pulw, outdat);
@@ -611,7 +605,7 @@ int main(int argc, char *argv[]) {
             mmx = datout[0];
             mbin = datout[1];
             emax = e;
-            for (d = 0; d < bins; d += 1) {
+            for (int d = 0; d < bins; d += 1) {
                 bstdmprf[d] = outdat[d]; //*period/bins*DM/td
             }
         } // printf("td=	%.2f	mmx= %.2f",td,mmx);
@@ -628,14 +622,14 @@ int main(int argc, char *argv[]) {
                 datout[0], (int)datout[1], (int)((e - dmn) * dmdiv),
                 dmsrch); /* write txt data to the output text file */
 
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             fprintf(files[FPT_DMFOLD], "%f	", (float)outdat[d]);
         }
         fprintf(files[FPT_DMFOLD], "\n");
     } // End dispersion search SNR
 
     // Build dmprf.txt - DM peak best fold text file
-    for (d = 0; d < bins; d += 1) {
+    for (int d = 0; d < bins; d += 1) {
         fprintf(files[FPT_DMPRF], "	%.2f", bstdmprf[d]); //.bstdmprf[(int)mbin]
     }
     fprintf(files[FPT_DMPRF], "\n");
@@ -648,12 +642,13 @@ int main(int argc, char *argv[]) {
                 ((float)((float)N * ((float)emax - (float)dmn) * period / (float)dmdiv)) /
                     (float)bins,
                 td);
-        fprintf(files[FPT_TEXT], "Max bin = %d	Max SNR = %.2f\n", (int)(mbin), (float)bstdmprf[(int)mbin]);
+        fprintf(files[FPT_TEXT], "Max bin = %d	Max SNR = %.2f\n", (int)(mbin),
+                (float)bstdmprf[(int)mbin]);
     }
 
     // Build dmSrchns.txt - Dispersion Search SNR - with target pulse range blanked
     for (int e = 0; e < dmx; e += 1) {
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             dfold[d] = ddfold[e][d];
             if (d > mbin - 8 * pulw && d < mbin + 8 * pulw)
                 dfold[d] = 0; // 8 for large signalsmbin+4*pulw//30 small
@@ -664,8 +659,8 @@ int main(int argc, char *argv[]) {
                 datout[0], (int)datout[1]); /* write txt data to the output text file */
     }
     printf("\n");
-    for (num = (-N / 2); num < (N / 2); num += 1) {
-        for (c = 0; c < PTS; c += 1) {
+    for (int num = (-N / 2); num < (N / 2); num += 1) {
+        for (long int c = 0; c < PTS; c += 1) {
             compvald[num + N / 2][c] = compval[num + N / 2][(
                 int)((c + M * bins +
                       (int)((int)((float)(num + 0.5) * dmp * ((float)emax - dmn) / dmdiv))) %
@@ -674,8 +669,8 @@ int main(int argc, char *argv[]) {
     }
 
     // Build allbandsd- optimum after dispersion search
-    for (c = 0; c < PTS; c += 1) {
-        for (num = (0); num < (N); num += 1) {
+    for (long int c = 0; c < PTS; c += 1) {
+        for (int num = (0); num < (N); num += 1) {
             allbandsd[c] = allbandsd[c] + compvald[num][c];
         }
     }
@@ -684,22 +679,21 @@ int main(int argc, char *argv[]) {
     printf("\n Band Search \n");
 
     float dperiod = bins;
-    for (num = 0; num < N; num += 1) {
-        for (s = 0; s < bins; s++) {
+    for (int num = 0; num < N; num += 1) {
+        for (int s = 0; s < bins; s++) {
             sumt[s] = 0;
             count[s] = 1;
         }
         // Band folds
-        int ss;
-        for (ss = 0; ss < PTS; ss++) {
-            ss = (double)ss;
-            range = (long long int)(((double)ss / ((double)dperiod) -
-                                     (long long int)((double)ss / ((double)dperiod))) *
-                                    ((double)bins));
+        for (int ss = 0; ss < PTS; ss++) {
+            const long int range =
+                (long long int)(((double)ss / ((double)dperiod) -
+                                 (long long int)((double)ss / ((double)dperiod))) *
+                                ((double)bins));
             sumt[range] = sumt[range] + compvald[num][ss];
             count[range] = count[range] + 1;
         }
-        for (s = 0; s < bins; s++) {
+        for (int s = 0; s < bins; s++) {
             outsumt[num][s] = 100 * sumt[s] / count[s];
         }
     }
@@ -707,15 +701,15 @@ int main(int argc, char *argv[]) {
     // Cumulative Band SNR - Build cumbands.txt
 
     printf(" Cumulative Band SNR\n");
-    for (d = 0; d < bins; d += 1) {
+    for (int d = 0; d < bins; d += 1) {
         dfold[d] = 0;
     }
-    for (num = 0; num < N; num += 1) {
-        for (d = 0; d < bins; d += 1) {
+    for (int num = 0; num < N; num += 1) {
+        for (int d = 0; d < bins; d += 1) {
             dfold[d] = dfold[d] + outsumt[num][d];
         }
         psnr(bins, dfold, mbin, datout, pulw, outdat);
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             bndcum[num][d] = outdat[d];
         }
         printf("Band = %d 	Cum SNR =  %.2f	bin = %d\n", num, datout[0], (int)datout[1]);
@@ -725,8 +719,8 @@ int main(int argc, char *argv[]) {
     printf("\n");
 
     // Build cumulative Band folds
-    for (d = 0; d < bins; d += 1) {
-        for (num = 0; num < N; num += 1) {
+    for (int d = 0; d < bins; d += 1) {
+        for (int num = 0; num < N; num += 1) {
             fprintf(files[FPT_BNDC], "	%.2f", bndcum[num][d]);
         }
         fprintf(files[FPT_BNDC], "\n");
@@ -735,11 +729,11 @@ int main(int argc, char *argv[]) {
     // SNR All Bands
     double maxx = 0;
     printf(" SNR All Bands\n");
-    for (d = 0; d < bins; d += 1) {
+    for (int d = 0; d < bins; d += 1) {
         dfold[d] = 0;
     }
-    for (num = 0; num < N; num += 1) {
-        for (d = 0; d < bins; d += 1) {
+    for (int num = 0; num < N; num += 1) {
+        for (int d = 0; d < bins; d += 1) {
             dfold[d] = dfold[d] + outsumt[num][d];
         }
     }
@@ -751,13 +745,13 @@ int main(int argc, char *argv[]) {
     // Section SNR. Build puldat.txt (section folds) and secsnr.txt (section SNR)
     double thry;
     for (m = 0; m < M; m += 1) {
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             dfold[d] = allbands[d + m * bins];
             dfoldd[d] = allbandsd[d + m * bins]; // dispersed version
             outdat[d] = 0;
         }
         psnr(bins, dfold, mbin, datout, pulw, outdat);
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             puldat[m][d] = outdat[d];
             fprintf(files[FPT_PULD], "	%.2f", puldat[m][d]);
         }
@@ -769,7 +763,7 @@ int main(int argc, char *argv[]) {
         sectsnr[m][1] = datout[0];
         sectsnr[m][2] = datout[1];
         psnr(bins, dfold, mbin, datout, pulw, outdat);
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             puldatd[m][d] = (float)outdat[d];
             fprintf(files[FPT_PULDD], "  %.2f",
                     puldatd[m][d]); /* write dedispersed puldat data to the output text file */
@@ -778,12 +772,12 @@ int main(int argc, char *argv[]) {
     }
 
     // Cumulative Section SNR - Build cumsec.txt
-    for (d = 0; d < bins; d += 1) {
+    for (int d = 0; d < bins; d += 1) {
         dfold[d] = 0;
         dfoldd[d] = 0;
     }
     for (m = 0; m < M; m += 1) {
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             dfold[d] = dfold[d] + allbands[d + m * bins];
             dfoldd[d] = dfoldd[d] + allbandsd[d + m * bins];
             dfolddd[d] = dfolddd[d] + allbandsdd[d + m * bins];
@@ -792,7 +786,7 @@ int main(int argc, char *argv[]) {
         sectsnr[m][0] = m;
         sectsnr[m][1] = datout[0];
         sectsnr[m][2] = datout[1];
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             foldat[m][d] = outdat[d];
             fprintf(files[FPT_FOLD], "%.2f  ", foldat[m][d]);
         }
@@ -800,13 +794,13 @@ int main(int argc, char *argv[]) {
         fprintf(files[FPT_CUMS], "%d	%.2f	%d\n", m, datout[0],
                 (int)datout[1]); /* write cumulative band SNR txt data to the output text file */
         psnr(bins, dfold, mbin, datout, pulw, outdat);
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             foldatd[m][d] = outdat[d];
             fprintf(files[FPT_FOLDD], "%.2f  ", foldatd[m][d]); // dedispersed foldat
         }
         fprintf(files[FPT_FOLDD], "\n");
         psnr(bins, dfold, mbin, datout, pulw, outdat);
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             foldatdd[m][d] = outdat[d];
             fprintf(files[FPT_FOLDDD], "%.2f  ",
                     foldatdd[m][d]); // fprintf(fptfoldd,"\n"); // dedispersed foldat
@@ -816,18 +810,18 @@ int main(int argc, char *argv[]) {
 
     // Period Search Folds
     float pperiod;
-    int s, ss, st;
+    int s, st;
     for (st = 0; st < 51; st++) {
         pperiod = bins * (1 + (st - 25) * 1 * ratio / 1000000 / nno1);
         for (s = 0; s < bins; s++) {
             sumt[s] = 0;
             count[s] = 1;
         }
-        for (ss = 0; ss < M * bins; ss++) {
-            ss = (double)ss;
-            range = (long long int)(((double)ss / ((double)pperiod) -
-                                     (long long int)((double)ss / ((double)pperiod))) *
-                                    ((double)bins));
+        for (int ss = 0; ss < M * bins; ss++) {
+            const long int range =
+                (long long int)(((double)ss / ((double)pperiod) -
+                                 (long long int)((double)ss / ((double)pperiod))) *
+                                ((double)bins));
             sumt[range] = sumt[range] + allbands[ss];
             count[range] = count[range] + 1;
         }
@@ -842,7 +836,7 @@ int main(int argc, char *argv[]) {
     maxx = 0;
     printf("\n Period Search, SNR v ppm change \n");
     for (st = 0; st < 51; st += 1) {
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             dfold[d] = outsumt[st][d];
         }
         psnr(bins, dfold, mbin, datout, pulw, outdat);
@@ -850,7 +844,7 @@ int main(int argc, char *argv[]) {
             maxx = datout[0];
     }
     for (st = 0; st < 51; st += 1) {
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             dfold[d] = outsumt[st][d];
         }
         psnr(bins, dfold, mbin, datout, pulw, outdat);
@@ -860,7 +854,7 @@ int main(int argc, char *argv[]) {
         fprintf(files[FPT_PER], " %.5f	%.5f	%d	%.3f\n", (float)(st - 25) / nno1, datout[0],
                 (int)datout[1], pspr); /* write txt data to the output text file */
         if (st > 19 && st < 31) {
-            for (d = 0; d < bins; d += 1) {
+            for (int d = 0; d < bins; d += 1) {
                 fprintf(files[FPT_PFOLD], "%f	",
                         (float)outdat[d]); // target period folds over the selected period range
             }
@@ -878,15 +872,15 @@ int main(int argc, char *argv[]) {
             sumt[s] = 0;
             count[s] = 1;
         }
-        for (ss = 0; ss < M * bins; ss++) {
-            ss = (double)ss;
+        for (int ss = 0; ss < M * bins; ss++) {
             periodt =
                 pperiod *
                 (1 + (double)(st - 25) * 1 *
                          (double)((ss * ratio / (double)(M * bins)) / (double)1000000 / nno1));
-            range = (long long int)(((double)ss / ((double)periodt) -
-                                     (long long int)((double)ss / ((double)periodt))) *
-                                    ((double)bins));
+            const long int range =
+                (long long int)(((double)ss / ((double)periodt) -
+                                 (long long int)((double)ss / ((double)periodt))) *
+                                ((double)bins));
             sumt[range] = sumt[range] + allbands[ss];
             count[range] = count[range] + 1;
         }
@@ -898,7 +892,7 @@ int main(int argc, char *argv[]) {
     // Pdot search SNR.  Build pdotS.txt
     double pdpr;
     for (st = 0; st < 51; st += 1) {
-        for (d = 0; d < bins; d += 1) {
+        for (int d = 0; d < bins; d += 1) {
             dfold[d] = outsumt[st][d];
         }
         psnr(bins, dfold, mbin, datout, pulw, outdat);
@@ -925,15 +919,15 @@ int main(int argc, char *argv[]) {
                 count[s] = 0;
                 dfold[s] = 0;
             }
-            for (ss = 0; ss < M * bins; ss++) {
-                ss = (double)ss;
+            for (int ss = 0; ss < M * bins; ss++) {
                 periodt =
                     pperiod *
                     (1 + (double)(st - 25) * 1 *
                              (double)((ss * ratio / (double)(M * bins)) / (double)1000000 / nno1));
-                range = (long long int)(((double)ss / ((double)periodt) -
-                                         (long long int)((double)ss / ((double)periodt))) *
-                                        ((double)bins));
+                const long int range =
+                    (long long int)(((double)ss / ((double)periodt) -
+                                     (long long int)((double)ss / ((double)periodt))) *
+                                    ((double)bins));
                 sumt[range] = sumt[range] + allbandsd[ss];
                 count[range] = count[range] + 1;
             }
@@ -942,7 +936,8 @@ int main(int argc, char *argv[]) {
             }
             psnr(bins, dfold, mbin, datout, pulw, outdat);
             ppdot[sp][st] = datout[0];
-            fprintf(files[FPT_PPD], "%.2f	 ", ppdot[sp][st]); /* write txt data to the output text file */
+            fprintf(files[FPT_PPD], "%.2f	 ",
+                    ppdot[sp][st]); /* write txt data to the output text file */
         }
         fprintf(files[FPT_PPD], "\n");
     }
@@ -960,11 +955,11 @@ int main(int argc, char *argv[]) {
         max = 0;
 
         for (m = 0; m < M - mp + 1; m += 1) {
-            for (d = 0; d < bins; d += 1) {
+            for (int d = 0; d < bins; d += 1) {
                 dfold[d] = 0;
             }
             for (xx = 0; xx < mp + 0; xx += 1) {
-                for (d = 0; d < bins; d += 1) {
+                for (int d = 0; d < bins; d += 1) {
                     dfold[d] = dfold[d] + allbandsd[d + (m + xx) * bins];
                 }
             }
@@ -974,7 +969,7 @@ int main(int argc, char *argv[]) {
                 centre = m + mp / 2;
                 span = mp;
 
-                for (d = 0; d < bins; d += 1) {
+                for (int d = 0; d < bins; d += 1) {
                     pkdat[d] = outdat[d];
                 }
             }
@@ -983,7 +978,7 @@ int main(int argc, char *argv[]) {
 
                 nxx = datout[1];
                 if (mp == rolav) {
-                    for (d = 0; d < bins; d += 1) {
+                    for (int d = 0; d < bins; d += 1) {
                         bestprof[d] = outdat[d];
                     }
                 }
@@ -992,12 +987,11 @@ int main(int argc, char *argv[]) {
                 secavsnr[m][0] = m + (int)(mp / 2);
                 secavsnr[m][1] = datout[0];
                 secavsnr[m][2] = datout[1];
-                fprintf(files[FPT_AVSEC], "%d	%.2f	%d 	%.2f\n", m + (int)(mp / 2), secavsnr[m][1],
-                        (int)secavsnr[m][2],
+                fprintf(files[FPT_AVSEC], "%d	%.2f	%d 	%.2f\n", m + (int)(mp / 2),
+                        secavsnr[m][1], (int)secavsnr[m][2],
                         datout[6]); /* write txt data to the output text file */
             }
-            cco = cco + 1;
-            for (d = 0; d < bins; d += 1) {
+            for (int d = 0; d < bins; d += 1) {
                 fprintf(files[FPT_AVFOL], "%f ", outdat[d]);
             }
             fprintf(files[FPT_AVFOL], "\n");
@@ -1009,25 +1003,26 @@ int main(int argc, char *argv[]) {
     printf("Period %f	No: bins = %d\n", period, (int)bins);
 
     // Build Best Result text file
-    fprintf(files[FPT_TEXT], "Best Section Range SNR = %.2f	Section Centre %d	Best Section Range %d\n",
+    fprintf(files[FPT_TEXT],
+            "Best Section Range SNR = %.2f	Section Centre %d	Best Section Range %d\n",
             (float)pkmax, centre, span);
     printf("Max SNR  %f	Spanned Sections = %d	 Section Centre = %d\n", pkmax, span, centre);
 
     // Build  profile.txt - output Pulse Profile text file
     printf("\n Analysed Data Output Files: \n");
-    for (d = 0; d < bins; d += 1) {
+    for (int d = 0; d < bins; d += 1) {
         dfold[d] = outsumt[25][d]; // outsumt/outdat[d] from p-dot fold with zero pdot
     }
     // bestprof[d] best at rolling average setting. Rolling average peak = pkdat.
     psnr(bins, dfold, mbin, datout, pulw, outdat);
-    for (d = 0; d < bins; d += 1) {
+    for (int d = 0; d < bins; d += 1) {
         fprintf(files[FPT_PROF], "%.1f	%f	%f	%f\n", (float)d, (float)outdat[d], bestprof[d],
                 pkdat[d]); /* write txt data to the output text file */
     }
 
     // Build allbands.txt - compressed, match-filtered band-combined data text file
     for (m = 0; m < M; m += 1) {
-        for (c = 0; c < (int)(bins); c += 1) {
+        for (long int c = 0; c < (int)(bins); c += 1) {
             fprintf(files[FPT_ALLB], "%f %f %f\n", (float)(allbands[c + m * bins]),
                     (float)(allbandsd[c + m * bins]),
                     (float)(allbandsdd[c + m * bins])); /* write txt data to the output text file */
