@@ -233,12 +233,16 @@ def get_topo_inputs():
 def run_process(inputs, label="pipeline"):
     append_output(f"\nRunning {label}...\n")
     try:
+        env = os.environ.copy()
+        env["PYTHONPATH"] = ROOT_DIR
         process = subprocess.Popen(
-            ["python", "RAG_Pulsar_Software.py"],
+            ["python", os.path.join(ROOT_DIR, "lib", "RAG_Pulsar_Software.py")],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            cwd=ROOT_DIR,
+            env=env
         )
         output, error = process.communicate("\n".join(inputs) + "\n")
         append_output(output)

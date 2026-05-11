@@ -1,6 +1,7 @@
 """
     A simple scprit for running Peter East's psrsoft alternative
     30.03.2026. Martin Ante Rogošić
+    Additions by Marko Radolović
 """
 
 import argparse
