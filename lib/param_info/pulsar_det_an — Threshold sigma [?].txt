@@ -1,1 +1,0 @@
-Spikes in the signal greater than sigma x rms are being clipped.

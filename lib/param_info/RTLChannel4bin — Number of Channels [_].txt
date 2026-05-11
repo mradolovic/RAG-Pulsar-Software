@@ -1,1 +1,0 @@
-The number of FFT points, which equals the number of output frequency channels (default 16). More channels give finer frequency resolution across the band, allowing pulsar_det_an to search dispersion measure more effectively.

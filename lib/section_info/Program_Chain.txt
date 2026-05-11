@@ -1,3 +1,0 @@
-The future version of the RAGV Pulsar detection program will be able to support two program chains.
-
-One is for recording with rtl_sdr, other one is for recording with GNURadio.

@@ -1,29 +1,24 @@
-# ── Compiled binaries ─────────────────────────────────────────────────────────
-*.out
-*.exe
-*.o
-# ── Raw / processed observation data ─────────────────────────────────────────
+# Ignore all .bin files
 *.bin
 
-# ── Plot output ───────────────────────────────────────────────────────────────
+# Ignore all .txt files
+*.txt
+
+# Ignore all .png files
 *.png
 
-# ── Python cache ──────────────────────────────────────────────────────────────
+#Ignore all .out files
+*.out
+
+#Ignore all .exe files
+*.exe
+
+#Ignore the __pycache__ in lib
 __pycache__/
-*.pyc
 
-# ── Raw observation data folder ───────────────────────────────────────────────
-data/
+# Allow Git to scan directories
+!*/
 
-# ── pulsar_det_an result text files ──────────────────────────────────────────
-results/pulsar_det_an_results/*.txt
-results/pul_plot_results/
-
-# Keep blank templates in results
-!results/pulsar_det_an_results/Blankf.txt
-!results/pulsar_det_an_results/Blanks.txt
-
-# ── RTL/bin ───────────────────────────────────────────────────────────────────
-# *.out and *.exe are already caught above, so just explicitly keep the Blanks
-RTL/bin/*.out
-RTL/bin/*.exe
+# Re-include specific files anywhere
+!**/Blankf.txt
+!**/Blanks.txt

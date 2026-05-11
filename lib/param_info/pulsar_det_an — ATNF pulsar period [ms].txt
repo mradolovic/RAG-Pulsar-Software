@@ -1,1 +1,0 @@
-The topocentric pulse period in milliseconds used as the centre of the period search (default 714.4 ms for B0329+54). When TopoBary or the whole program chain are run, this field is updated automatically with the computed topocentric value.

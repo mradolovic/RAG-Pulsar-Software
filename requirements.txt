@@ -1,4 +1,0 @@
-numpy==2.4.4
-matplotlib==3.10.9
-Pillow==12.2.0
-astropy==7.2.0

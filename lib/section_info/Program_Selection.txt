@@ -1,2 +1,0 @@
-Allows the user to select which programs to use for the program chain.
-

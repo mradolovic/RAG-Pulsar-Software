@@ -1,1 +1,0 @@
- The rate at which the pulsar's period is changing, in seconds per second (B0329+54 default: 2.048265×10⁻¹⁵). Multiplied by the time elapsed since the reference epoch, this gives the secular spin-down correction to P0.

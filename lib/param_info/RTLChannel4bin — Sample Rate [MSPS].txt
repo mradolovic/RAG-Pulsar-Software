@@ -1,1 +1,0 @@
-The sample rate of the RTL-SDR receiver in Mega-Samples Per Second (MSPS). This determines the total RF bandwidth captured; a rate of 2.4 MSPS corresponds to approximately 2.4 MHz of usable bandwidth. Must match the rate used during the original recording.

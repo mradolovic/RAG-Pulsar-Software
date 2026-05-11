@@ -1,1 +1,0 @@
-The channelised binary file output by RTLChannel4bin, or a previously saved equivalent. Each record contains N 4-byte floats, one per frequency channel, at the data set rate.

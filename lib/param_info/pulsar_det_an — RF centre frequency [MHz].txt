@@ -1,1 +1,0 @@
-hjkhkhThe tuned centre frequency of the receiver in megahertz (default 422 MHz). Together with RF bandwidth, this defines the absolute frequency of each channel for dispersion delay calculations.

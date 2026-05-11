@@ -1,1 +1,0 @@
-Number of points in the internal FFT used for period searching (default 16). This should match the number of channels produced by RTLChannel4bin.

@@ -73,9 +73,8 @@ band0 = loadcumbandarray[0:bands, 1]*0
 loadbandarray = np.loadtxt('bandcum.txt')#target snr
 line = loadbandarray[int(maxbin), 0:bands]
                      
-#ovo je vjv neki visak u kodu, zbog tog krshi pul plot
-#loadbandparray = np.loadtxt('bandcump.txt')#target snr
-#linep = loadbandparray[int(maxbin), 0:bands]
+loadbandparray = np.loadtxt('bandcump.txt')#target snr
+linep = loadbandparray[int(maxbin), 0:bands]
 
 loadrolarray = np.loadtxt('secavrol.txt')#rolling average range
 sections = loadrolarray.shape[0]

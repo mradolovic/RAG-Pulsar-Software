@@ -1,3 +1,0 @@
-A parts per million ATNF period adjustment required to maximise target SNR (default −1.3 ppm). 
-
-It is used to adjust the sampling frequency variation due to SDR's oscillator jitter and center frequency inaccuracy.
