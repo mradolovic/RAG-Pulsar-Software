@@ -3,7 +3,7 @@
 #include "../../includes/numerics/four.h"
 
 
-void spectrum(double sum[], int PTS, double pdat[], double ftdat[], double ftdat2[]) {
+void spectrum(double sum[], int PTS, double pdat[], double ftdat2[]) {
     int v;
 
     /*FT of folded data */
@@ -12,7 +12,7 @@ void spectrum(double sum[], int PTS, double pdat[], double ftdat[], double ftdat
         pdat[2 * v + 1] = 0;
     }
     /*FT of Gaussian target data */
-    four(pdat - 1, PTS, -1);
+    four(pdat , PTS, -1);
     /*Target magnitude */
     for (v = 0; v < PTS / 2; v++) {
         ftdat2[v] = pdat[2 * v] / sqrt((double)PTS);

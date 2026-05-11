@@ -1,7 +1,7 @@
 CC      = gcc
-CFLAGS  = -O3 -lm -D_FILE_OFFSET_BITS=64
-#CFLAGS = -O1  -D_FILE_OFFSET_BITS=64 -Wall -Wpedantic -Wextra
-LDFLAGS = -lm
+#CFLAGS  = -O3 -lm -D_FILE_OFFSET_BITS=64
+CFLAGS = -O3 -flto -g3 -D_FILE_OFFSET_BITS=64 -Wall -Wpedantic -Wextra  -fsanitize=address
+LDFLAGS = -lm -fsanitize=address
 SRC_DIR = src
 BIN_DIR = bin
 INCLUDE_DIR = includes
@@ -29,6 +29,8 @@ TARGETS = $(BIN_DIR)/FileTrim$(EXT) \
           $(BIN_DIR)/rapulsar2con$(EXT) \
           $(BIN_DIR)/Blanks.txt \
           $(BIN_DIR)/Blankf.txt 
+
+
 
 ####################################################################################################
 ## object files from the numerics directory
@@ -58,6 +60,11 @@ $(BIN_DIR)/spectrum.o : $(SRC_DIR)/numerics/spectrum.c $(INCLUDE_DIR)/numerics/s
 
 $(BIN_DIR)/targgaus.o : $(SRC_DIR)/numerics/targgaus.c $(INCLUDE_DIR)/numerics/targgaus.h $(INCLUDE_DIR)/numerics/four.h 
 	$(CC) $(CFLAGS) -c $< -o $@
+
+####################################################################################################
+##object files from io directory
+$(BIN_DIR)/files.o : $(SRC_DIR)/io/files.c
+	$(CC) $(CFLAGS) -c $< -o $@
 ####################################################################################################
 ## object files that represent the targets
 NUMERICS = \
@@ -70,6 +77,10 @@ NUMERICS = \
 	$(BIN_DIR)/perSch.o \
 	$(BIN_DIR)/spectrum.o \
 	$(BIN_DIR)/targgaus.o
+
+IO = \
+	$(BIN_DIR)/files.o
+
 $(BIN_DIR)/pulsar_det_an_v4.o : $(SRC_DIR)/pulsar_det_an_v4.c $(NUMERICS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -87,12 +98,12 @@ $(BIN_DIR)/RTLChannel4bin$(EXT): $(SRC_DIR)/RTLChannel4bin.c
 ####################################################################################################
 ## Finally we link the o files for the relevant targets (right now only pulsar_det_an_v4)
 
-$(BIN_DIR)/pulsar_det_an_v4$(EXT) : $(BIN_DIR)/pulsar_det_an_v4.o $(NUMERICS)
+$(BIN_DIR)/pulsar_det_an_v4$(EXT) : $(BIN_DIR)/pulsar_det_an_v4.o $(NUMERICS) $(IO)
 	$(CC) $^ -o $@ $(LDFLAGS)
 ####################################################################################################
 .PHONY: all clean
 
-all: $(BIN_DIR) $(NUMERICS) $(TARGETS)
+all: $(BIN_DIR) $(NUMERICS) $(IO) $(TARGETS)
 
 $(BIN_DIR):
 	$(MKDIR)

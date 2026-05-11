@@ -16,7 +16,7 @@ void conv(double sum[], float pulw, int PTS, double period, int M, double pdat[]
         pdat[2 * v + 1] = 0;
     }
 
-    four(pdat - 1, PTS, -1); // FFT data
+    four(pdat , PTS, -1); // FFT data
     /*Convolve fold data spectrum with pulse spectrum  */
     for (v = 0; v < PTS; v++) {
         pdat[2 * v] = pdat[2 * v] * targ[v] / targ[0];
@@ -38,7 +38,7 @@ void conv(double sum[], float pulw, int PTS, double period, int M, double pdat[]
         pdat[2 * PTS - 1 - (2 * v + 1)] = 0;
     }
     /*Inverse FT of convolved and filtered data */
-    four(pdat - 1, PTS, 1);
+    four(pdat , PTS, 1);
 
     /*Output convolved real magnitude */
     for (v = 0; v < PTS; v++) {

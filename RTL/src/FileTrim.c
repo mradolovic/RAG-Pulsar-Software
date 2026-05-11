@@ -9,7 +9,6 @@ Command format:- filetrim <infile> <outfile> <Start Bytes to cut>  <End Bytes to
 // obs_20251003_2.bin rag_obscuta.bin 59251433984 0
 // obs_20251003_2.bin rag_obscutc.bin 29625716992 29625716992
 
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -25,8 +24,7 @@ void out_dat(void);
 
 int main(int argc, char *argv[]) {
 
-    long long int ss, sss;
-    int s;
+    long long int sss;
 
     /*check command line arguments*/
     if (argc != 5) {

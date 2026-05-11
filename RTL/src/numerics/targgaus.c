@@ -22,7 +22,7 @@ void targgaus(float pulw, int PTS, double targ[], double period, int M) {
         targ[2 * v + 1] = 0;
     }
     /*FT of Gaussian target data */
-    four(targ - 1, PTS, -1);
+    four(targ , PTS, -1);
     /*Target magnitude */
     for (v = 0; v < PTS; v++) {
         targ[v] = sqrt(targ[2 * v] * targ[2 * v] + targ[2 * v + 1] * targ[2 * v + 1]) + ZERO;
