@@ -29,7 +29,7 @@ if __name__ == "__main__":
     parser.parse_args()
 
     #Compile everything
-    #compile_everything()
+    compile_everything()
 
 
     #Now we need to ask the user to input all of the data
