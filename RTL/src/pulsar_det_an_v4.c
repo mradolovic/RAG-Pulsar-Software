@@ -34,7 +34,7 @@ for MathCad,Excel and/or Python analysis.
 #include "../includes/numerics/spectrum.h"
 #include "../includes/numerics/targgaus.h"
 
-double comprs[32][262144], comprc[32][262144], ave[32][4096], rms[32][4096], mean[32], std[32],
+double comprs[262144][32], comprc[262144][32], ave[32][4096], rms[32][4096], mean[32], std[32],
     av[32][4096], rm[32][4096];
 double compval[32][262144], compvald[32][262144], compvaldd[32][262144], spect[32][262144];
 double bndcum[32][4096], ftdat[1048576], ftdat2[1048576], allbands[262144], allbandsd[262144],
@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
     const float thres = atof(argv[10]);   // spike threshold
 
     const int PTS = M * bins;
-
+    const double inverse_N = 1.0 / (double)N;
     // some error correction
     if (N > 100) {
         printf("No: Bands < 101 \n");
@@ -290,7 +290,7 @@ int main(int argc, char *argv[]) {
 
     // Serially fold data into M sections -
     // http://www.y1pwe.co.uk/RAProgs/LowSNRCorrelationSearch.pdf
-    //This is a very slow operation that needs to be speed up, specifically the file loading
+    // This is a very slow operation that needs to be speed up, specifically the file loading
     long int cnt = 0;
     for (long int aux = 0; aux < (nmax * M); aux += 1) { // nmax equals the number of data sets
 
@@ -300,17 +300,14 @@ int main(int argc, char *argv[]) {
         const int mval = (int)((long int)sm + (long int)xs * (long int)bins);
 
         // Read input data FFT blocks
+
         for (int num = 0; num < N; num += 1) { // N = number of FFT channels
 
             float val = 0;
             fread(&val, 4, 1, fptr); // read 4-byte float from file
-            comprs[num][mval] =
-                comprs[num][mval] +
-                ((double)(val *
-                          10)); // fold into
-                                // bins//comprs[num][mval]=comprs[num][mval]+(double)(val-128)*100.0;
-            comprc[num][mval] = comprc[num][mval] + 1; // count bin entries
-            fwrite(&val, 4, 1, files[FPT_CUT]);        // write bin file - selected sections
+            comprs[mval][num] = comprs[mval][num] + ((double)(val * 10)); // fold into bins
+            comprc[mval][num] = comprc[mval][num] + 1;                    // count bin entries
+            fwrite(&val, 4, 1, files[FPT_CUT]); // write bin file - selected sections
         }
         cnt = cnt + 1;
     }
@@ -328,8 +325,10 @@ int main(int argc, char *argv[]) {
     // Check no count entries are zero
     for (int num = 0; num < N; num += 1) {
         for (int bi = 0; bi < M * bins; bi += 1) {
-            if (comprc[num][bi] == 0)
-                comprc[num][bi] = 1.0;
+            comprc[bi][num] += (comprc[bi][num] == 0);
+            // The above is the same as the lines below
+            /*if (comprc[num][bi] == 0)
+                comprc[num][bi] = 1.0;*/
         }
     }
 
@@ -340,8 +339,12 @@ int main(int argc, char *argv[]) {
         for (long int c = 0; c < PTS; c += 1) // M = number of sections
         {
             const int Mc = c / bins;
+            // Note: The float cast here is unnecesarry and wastes both time and precision
+            // We should test the original code against the removed version and check whether only
+            // the precision is different if so remove the cast and get both performance and
+            // precition boost
             compval[num][c] =
-                (float)(comprs[num][c] / comprc[num][c]); // normalise raw partially folded data
+                (float)(comprs[c][num] / comprc[c][num]); // normalise raw partially folded data
             ave[num][Mc] = ave[num][Mc] + (float)compval[num][c] / (float)bins; // section average
             rms[num][Mc] = rms[num][Mc] + ((float)(compval[num][c])) * ((float)(compval[num][c])) /
                                               (float)bins; // section squared rms
@@ -397,9 +400,6 @@ int main(int argc, char *argv[]) {
     // Matched-filter data bandwidth to just pass pulsar pulse - FFT data and Convolve bands
     for (int num = 0; num < N; num += 1) { // printf("	M1=%d	N=%d	bins=%d\n",M,N,bins);
         memcpy(ftdat, compval[num], PTS * sizeof(double));
-        for (long int c = 0; c < PTS; c += 1) {
-            // ftdat[c] = compval[num][c];
-        }
         conv(ftdat, pulw, PTS, period, M, pdat, targ,
              fftdat); // outputs ftdat input blocks asconvolved and filtered fftdat blocks
         spectrum(fftdat, PTS, pdat, ftdat2); // outputs fftdat input block spectra as ftdat2
@@ -439,9 +439,9 @@ int main(int argc, char *argv[]) {
     printf("\n");
 
     // Final DC restore
-    for (int num = 0; num < N; num += 1) {
-        for (long int c = 0; c < PTS; c += 1) {
-            const int Mc = c / bins;
+    for (long int c = 0; c < PTS; c += 1) {
+        const int Mc = c / bins;
+        for (int num = 0; num < N; num += 1) {
             compval[num][c] = (compval[num][c] - av[num][Mc]);
         }
     }
@@ -550,21 +550,73 @@ int main(int argc, char *argv[]) {
         dmn = 50; // max and min of e range; dmp is DM polarity; dmdiv is range divider
 
     // Optimizaiton required here, most cache misses happen here
-    int half_N = N / 2;
-    for (int e = 0; e < dmx; e += 1) {
-        for (int num = -half_N; num < half_N; num += 1) {
-            for (long int c = 0; c < PTS; c += 1) {
-                const long int idx = num + half_N;
-                const long int idy = (int)(c + 2 * PTS +
-                                            ((int)(((float)num + 0.5) * dmp *
-                                                   ((float)e - (float)dmn) / dmdiv))) %
-                                           PTS;
-                ddispbands[e][c] =
-                    ddispbands[e][c] + compval[idx][idy] / (double)N; 
+    /*const int double_PTS = 2 * PTS;
+    const int half_N = N / 2;
+    const float inverse_dmdiv = 1.0f / dmdiv;
+    for (int num = -half_N; num < half_N; num += 1) {
+        for (int e = 0; e < dmx; e += 1) {
+            const int pre_compute =
+                double_PTS + (int)(((float)num + 0.5) * dmp * ((float)e - (float)dmn) *
+    inverse_dmdiv); const long int idx = num + half_N; for (long int c = 0; c < PTS; c += 1) { const
+    long int idy = (c + pre_compute) % PTS; ddispbands[e][c] = ddispbands[e][c] + compval[idx][idy]
+    * inverse_N;
+            }
+        }
+    }*/
+    const int double_PTS = 2 * PTS;
+    const int half_N = N / 2;
+    const float inverse_dmdiv = 1.0f / dmdiv;
+
+    for (int num = -half_N; num < half_N; num += 1) {
+
+        const long int idx = num + half_N;
+
+        for (int e = 0; e < dmx; e += 1) {
+
+            const int pre_compute = double_PTS + (int)(((float)num + 0.5f) * dmp *
+                                                       ((float)e - (float)dmn) * inverse_dmdiv);
+
+            /*
+             * Since:
+             *
+             * idy = (c + pre_compute) % PTS
+             *
+             * we can reduce pre_compute once.
+             */
+            const int shift = pre_compute % PTS;
+
+            /*
+             * Wrap occurs when:
+             *
+             * c + shift >= PTS
+             *
+             * therefore:
+             *
+             * c >= PTS - shift
+             */
+            const int split = PTS - shift;
+
+            /*
+             * First region:
+             *
+             * No wraparound needed.
+             */
+            for (long int c = 0; c < split; c += 1) {
+
+                ddispbands[e][c] += compval[idx][c + shift] * inverse_N;
+            }
+
+            /*
+             * Second region:
+             *
+             * Wraparound occurs.
+             */
+            for (long int c = split; c < PTS; c += 1) {
+
+                ddispbands[e][c] += compval[idx][c + shift - PTS] * inverse_N;
             }
         }
     }
-
     // Dispersion Search
     memset(ddfold, 0, sizeof(ddfold));
     for (int e = 0; e < dmx; e += 1) {
@@ -918,9 +970,6 @@ int main(int argc, char *argv[]) {
                 span = mp;
 
                 memcpy(pkdat, outdat, bins * sizeof(double));
-                for (int d = 0; d < bins; d += 1) {
-                    // pkdat[d] = outdat[d];
-                }
             }
             if (datout.std_snr > max) {
                 max = datout.std_snr;
