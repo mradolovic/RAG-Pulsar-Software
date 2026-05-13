@@ -39,11 +39,11 @@ double compval[32][262144], compvald[32][262144], compvaldd[32][262144], spect[3
     puldat[256][4096], ppdot[128][128], bandat[32][4096];
 double bndcum[32][4096], ftdat[1048576], ftdat2[1048576], allbands[262144], allbandsd[262144],
     allbandsdd[262144], spallbands[262144];
-double ddispbands[256][131072], datout[8], dfold[4096], ddfold[256][4096], dfoldd[4096],
-    dfolddd[4096], outdat[4096], fftdat[1048576];
-double bstdmprf[4096], pdat[1048576], targ[1048576], foldatdd[256][4096], puldatd[256][4096];
-double sumt[4096], count[4096], outsumt[100][4096], pkdat[4096], secavsnr[256][8],
-    foldat[256][4096], foldatd[256][4096];
+double ddispbands[256][131072], dfold[4096], ddfold[256][4096], dfoldd[4096], dfolddd[4096],
+    outdat[4096], fftdat[1048576];
+double bstdmprf[4096], pdat[1048576], targ[1048576],  puldatd[256][4096];
+double sumt[4096], count[4096], outsumt[100][4096], pkdat[4096], foldat[256][4096],
+    foldatd[256][4096];
 
 int main(int argc, char *argv[]) {
     FILE **files = open_files();
@@ -326,9 +326,8 @@ int main(int argc, char *argv[]) {
            25.0 * 2.0 * numlog / nno1 / numper, (int)numlog);
 
     // Check no count entries are zero
-    int bi;
     for (int num = 0; num < N; num += 1) {
-        for (bi = 0; bi < M * bins; bi += 1) {
+        for (int bi = 0; bi < M * bins; bi += 1) {
             if (comprc[num][bi] == 0)
                 comprc[num][bi] = 1.0;
         }
@@ -523,16 +522,17 @@ int main(int argc, char *argv[]) {
                 dfold[d] = dfold[d] + compval[num][s * bins + d];
             } // outsumt[num][d];outdat[d]=0;
         }
-        psnr(bins, dfold, mbin, datout, pulw, outdat);
-        if (datout[0] > mmx) {
-            mmx = datout[0];
+        psnrReturn datout;
+        psnr(bins, dfold, mbin, &datout, pulw, outdat);
+        if (datout.std_snr > mmx) {
+            mmx = datout.std_snr;
         }
         for (int d = 0; d < bins; d += 1) {
             bandat[num][d] = outdat[d];
         }
-        printf("Band = %d 	SNR =  %.2f	bin = %d\n", num, datout[0], (int)datout[1]);
-        fprintf(files[FPT_BND], "%d	%.2f	%d\n", num, datout[0],
-                (int)datout[1]); /* write band number SNR and max bin to bandS.txt ext file */
+        printf("Band = %d 	SNR =  %.2f	bin = %d\n", num, datout.std_snr, (int)datout.nx);
+        fprintf(files[FPT_BND], "%d	%.2f	%d\n", num, datout.std_snr,
+                (int)datout.nx); /* write band number SNR and max bin to bandS.txt ext file */
     }
     printf("\n");
 
@@ -593,10 +593,11 @@ int main(int argc, char *argv[]) {
         for (int d = 0; d < bins; d += 1) {
             dfold[d] = ddfold[e][d];
         }
-        psnr(bins, dfold, mbin, datout, pulw, outdat);
-        if (datout[0] > mmx) {
-            mmx = datout[0];
-            mbin = datout[1];
+        psnrReturn datout;
+        psnr(bins, dfold, mbin, &datout, pulw, outdat);
+        if (datout.std_snr > mmx) {
+            mmx = datout.std_snr;
+            mbin = datout.nx;
             emax = e;
             for (int d = 0; d < bins; d += 1) {
                 bstdmprf[d] = outdat[d]; //*period/bins*DM/td
@@ -607,12 +608,12 @@ int main(int argc, char *argv[]) {
                        N, DM, td, pulw);
         printf("DM =	%.2f	SNR =  %.2f	bin = %d	e = %d	dmsrch = %.2f\n",
                (float)((float)(N) * ((float)e - dmn) / dmdiv) * (period / (float)bins) * (DM / td),
-               datout[0], (int)datout[1], (int)((e - dmn) * dmdiv),
+               datout.std_snr, (int)datout.nx, (int)((e - dmn) * dmdiv),
                dmsrch); //*1.0*(int)period/(float)bins*DM/td
         fprintf(files[FPT_DMS], "%.2f	%.2f	%d	%d	%.2f\n",
                 (float)((((float)(N) * ((float)e - dmn) / dmdiv))) * (period / (float)bins) *
                     (DM / td),
-                datout[0], (int)datout[1], (int)((e - dmn) * dmdiv),
+                datout.std_snr, (int)datout.nx, (int)((e - dmn) * dmdiv),
                 dmsrch); /* write txt data to the output text file */
 
         for (int d = 0; d < bins; d += 1) {
@@ -646,10 +647,11 @@ int main(int argc, char *argv[]) {
             if (d > mbin - 8 * pulw && d < mbin + 8 * pulw)
                 dfold[d] = 0; // 8 for large signalsmbin+4*pulw//30 small
         }
-        psnr(bins, dfold, mbin, datout, pulw, outdat);
+        psnrReturn datout;
+        psnr(bins, dfold, mbin, &datout, pulw, outdat);
         fprintf(files[FPT_DMNS], "%.2f	%.2f	%d\n",
                 (float)((float)(N) * ((float)e - dmn) / dmdiv) * (period / (float)bins) * (DM / td),
-                datout[0], (int)datout[1]); /* write txt data to the output text file */
+                datout.std_snr, (int)datout.nx); /* write txt data to the output text file */
     }
     printf("\n");
     for (int num = (-N / 2); num < (N / 2); num += 1) {
@@ -701,13 +703,14 @@ int main(int argc, char *argv[]) {
         for (int d = 0; d < bins; d += 1) {
             dfold[d] = dfold[d] + outsumt[num][d];
         }
-        psnr(bins, dfold, mbin, datout, pulw, outdat);
+        psnrReturn datout;
+        psnr(bins, dfold, mbin, &datout, pulw, outdat);
         for (int d = 0; d < bins; d += 1) {
             bndcum[num][d] = outdat[d];
         }
-        printf("Band = %d 	Cum SNR =  %.2f	bin = %d\n", num, datout[0], (int)datout[1]);
-        fprintf(files[FPT_CUMF], "%d	%.2f	%d\n", num, datout[0],
-                (int)datout[1]); /* write cumulative band data to the cumbands.txt file */
+        printf("Band = %d 	Cum SNR =  %.2f	bin = %d\n", num, datout.std_snr, (int)datout.nx);
+        fprintf(files[FPT_CUMF], "%d	%.2f	%d\n", num, datout.std_snr,
+                (int)datout.nx); /* write cumulative band data to the cumbands.txt file */
     }
     printf("\n");
 
@@ -730,9 +733,10 @@ int main(int argc, char *argv[]) {
             dfold[d] = dfold[d] + outsumt[num][d];
         }
     }
-    psnr(bins, dfold, mbin, datout, pulw, outdat);
-    maxx = datout[0];
-    printf("Bands = %d 	BSNR =  %.2f	bin = %d\n", N, datout[0], (int)datout[1]);
+    psnrReturn datout;
+    psnr(bins, dfold, mbin, &datout, pulw, outdat);
+    maxx = datout.std_snr;
+    printf("Bands = %d 	BSNR =  %.2f	bin = %d\n", N, datout.std_snr, (int)datout.nx);
     printf("\n");
 
     // Section SNR. Build puldat.txt (section folds) and secsnr.txt (section SNR)
@@ -743,16 +747,18 @@ int main(int argc, char *argv[]) {
             dfoldd[d] = allbandsd[d + m * bins]; // dispersed version
             outdat[d] = 0;
         }
-        psnr(bins, dfold, mbin, datout, pulw, outdat);
+        // We need to think about whether we can add a local variable here, this way datout prevents
+        // paralelization
+        psnr(bins, dfold, mbin, &datout, pulw, outdat);
         for (int d = 0; d < bins; d += 1) {
             puldat[m][d] = outdat[d];
             fprintf(files[FPT_PULD], "	%.2f", puldat[m][d]);
         }
         fprintf(files[FPT_PULD], "\n");
         thry = maxx * sqrt((double)m / (double)M);
-        fprintf(files[FPT_SEC], "%d	%.2f	%d	%.2f\n", m, datout[0], (int)datout[1],
+        fprintf(files[FPT_SEC], "%d	%.2f	%d	%.2f\n", m, datout.std_snr, (int)datout.nx,
                 (float)thry); /* write txt data to the output text file */
-        psnr(bins, dfold, mbin, datout, pulw, outdat);
+        psnr(bins, dfold, mbin, &datout, pulw, outdat);
         for (int d = 0; d < bins; d += 1) {
             puldatd[m][d] = (float)outdat[d];
             fprintf(files[FPT_PULDD], "  %.2f",
@@ -772,25 +778,24 @@ int main(int argc, char *argv[]) {
             dfoldd[d] = dfoldd[d] + allbandsd[d + m * bins];
             dfolddd[d] = dfolddd[d] + allbandsdd[d + m * bins];
         }
-        psnr(bins, dfold, mbin, datout, pulw, outdat);
+        psnr(bins, dfold, mbin, &datout, pulw, outdat);
         for (int d = 0; d < bins; d += 1) {
             foldat[m][d] = outdat[d];
             fprintf(files[FPT_FOLD], "%.2f  ", foldat[m][d]);
         }
         fprintf(files[FPT_FOLD], "\n");
-        fprintf(files[FPT_CUMS], "%d	%.2f	%d\n", m, datout[0],
-                (int)datout[1]); /* write cumulative band SNR txt data to the output text file */
-        psnr(bins, dfold, mbin, datout, pulw, outdat);
+        fprintf(files[FPT_CUMS], "%d	%.2f	%d\n", m, datout.std_snr,
+                (int)datout.nx); /* write cumulative band SNR txt data to the output text file */
+        psnr(bins, dfold, mbin, &datout, pulw, outdat);
         for (int d = 0; d < bins; d += 1) {
-            foldatd[m][d] = outdat[d];
-            fprintf(files[FPT_FOLDD], "%.2f  ", foldatd[m][d]); // dedispersed foldat
+            //foldatd[m][d] = outdat[d];
+            fprintf(files[FPT_FOLDD], "%.2f  ", outdat[d]); // dedispersed foldat
         }
         fprintf(files[FPT_FOLDD], "\n");
-        psnr(bins, dfold, mbin, datout, pulw, outdat);
+        psnr(bins, dfold, mbin, &datout, pulw, outdat);
         for (int d = 0; d < bins; d += 1) {
-            foldatdd[m][d] = outdat[d];
             fprintf(files[FPT_FOLDDD], "%.2f  ",
-                    foldatdd[m][d]); // fprintf(fptfoldd,"\n"); // dedispersed foldat
+                    outdat[d]); // fprintf(fptfoldd,"\n"); // dedispersed foldat
         }
         fprintf(files[FPT_FOLDDD], "\n");
     }
@@ -826,20 +831,20 @@ int main(int argc, char *argv[]) {
         for (int d = 0; d < bins; d += 1) {
             dfold[d] = outsumt[st][d];
         }
-        psnr(bins, dfold, mbin, datout, pulw, outdat);
-        if (datout[0] > maxx)
-            maxx = datout[0];
+        psnr(bins, dfold, mbin, &datout, pulw, outdat);
+        if (datout.std_snr > maxx)
+            maxx = datout.std_snr;
     }
     for (int st = 0; st < 51; st += 1) {
         for (int d = 0; d < bins; d += 1) {
             dfold[d] = outsumt[st][d];
         }
-        psnr(bins, dfold, mbin, datout, pulw, outdat);
+        psnr(bins, dfold, mbin, &datout, pulw, outdat);
         pspr = 3 + (maxx - 3) * perSch((double)(st - 25) * 1 / nno1, (numper), pulw, period);
-        printf("ppm = %.2f	SNR =  %.2f	bin = %d\n", (float)(st - 25) / nno1, datout[0],
-               (int)datout[1]);
-        fprintf(files[FPT_PER], " %.5f	%.5f	%d	%.3f\n", (float)(st - 25) / nno1, datout[0],
-                (int)datout[1], pspr); /* write txt data to the output text file */
+        printf("ppm = %.2f	SNR =  %.2f	bin = %d\n", (float)(st - 25) / nno1, datout.std_snr,
+               (int)datout.nx);
+        fprintf(files[FPT_PER], " %.5f	%.5f	%d	%.3f\n", (float)(st - 25) / nno1,
+                datout.std_snr, (int)datout.nx, pspr); /* write txt data to the output text file */
         if (st > 19 && st < 31) {
             for (int d = 0; d < bins; d += 1) {
                 fprintf(files[FPT_PFOLD], "%f	",
@@ -882,15 +887,15 @@ int main(int argc, char *argv[]) {
         for (int d = 0; d < bins; d += 1) {
             dfold[d] = outsumt[st][d];
         }
-        psnr(bins, dfold, mbin, datout, pulw, outdat);
+        psnr(bins, dfold, mbin, &datout, pulw, outdat);
         pdpr = 3 + (maxx - 3) * pdSch((float)(st - 25) * 2 * numlog * .5 / (double)M / ratio / nno1,
                                       (numper), pulw, period, numlog);
         printf("pdot = %.2f	SNR =  %.2f	bin = %d\n",
-               (float)(st - 25) * 2 * numlog / (double)M / ratio / 1 / nno1, datout[0],
-               (int)datout[1]);
+               (float)(st - 25) * 2 * numlog / (double)M / ratio / 1 / nno1, datout.std_snr,
+               (int)datout.nx);
         fprintf(files[FPT_PD], " %.5f	%.5f	%d	%.5f\n",
-                (float)(st - 25) * 2 * numlog / (double)M / ratio / 1 / nno1, datout[0],
-                (int)datout[1], pdpr); /* write txt data to the output text file */
+                (float)(st - 25) * 2 * numlog / (double)M / ratio / 1 / nno1, datout.std_snr,
+                (int)datout.nx, pdpr); /* write txt data to the output text file */
     }
     printf("\n");
 
@@ -920,8 +925,8 @@ int main(int argc, char *argv[]) {
             for (s = 0; s < bins; s++) {
                 dfold[s] = 100 * sumt[s] / count[s];
             }
-            psnr(bins, dfold, mbin, datout, pulw, outdat);
-            ppdot[sp][st] = datout[0];
+            psnr(bins, dfold, mbin, &datout, pulw, outdat);
+            ppdot[sp][st] = datout.std_snr;
             fprintf(files[FPT_PPD], "%.2f	 ",
                     ppdot[sp][st]); /* write txt data to the output text file */
         }
@@ -937,7 +942,7 @@ int main(int argc, char *argv[]) {
     for (mp = 1; mp < M + 1; mp += 1) {
         if (mp == rolav)
             printf("Set Section Rolling Average Window %d \n", mp);
-        datout[0] = 0;
+        datout.std_snr = 0;
         max = 0;
 
         for (m = 0; m < M - mp + 1; m += 1) {
@@ -949,9 +954,9 @@ int main(int argc, char *argv[]) {
                     dfold[d] = dfold[d] + allbandsd[d + (m + xx) * bins];
                 }
             }
-            psnr(bins, dfold, mbin, datout, pulw, outdat);
-            if (outdat[(int)datout[1]] > pkmax) {
-                pkmax = outdat[(int)datout[1]];
+            psnr(bins, dfold, mbin, &datout, pulw, outdat);
+            if (outdat[(int)datout.nx] > pkmax) {
+                pkmax = outdat[(int)datout.nx];
                 centre = m + mp / 2;
                 span = mp;
 
@@ -959,10 +964,10 @@ int main(int argc, char *argv[]) {
                     pkdat[d] = outdat[d];
                 }
             }
-            if (datout[0] > max) {
-                max = datout[0];
+            if (datout.std_snr > max) {
+                max = datout.std_snr;
 
-                nxx = datout[1];
+                nxx = datout.nx;
                 if (mp == rolav) {
                     for (int d = 0; d < bins; d += 1) {
                         bestprof[d] = outdat[d];
@@ -970,12 +975,9 @@ int main(int argc, char *argv[]) {
                 }
             }
             if (mp == rolav) {
-                secavsnr[m][0] = m + (int)(mp / 2);
-                secavsnr[m][1] = datout[0];
-                secavsnr[m][2] = datout[1];
                 fprintf(files[FPT_AVSEC], "%d	%.2f	%d 	%.2f\n", m + (int)(mp / 2),
-                        secavsnr[m][1], (int)secavsnr[m][2],
-                        datout[6]); /* write txt data to the output text file */
+                        datout.std_snr, (int)datout.nx,
+                        datout.unknown_var); /* write txt data to the output text file */
             }
             for (int d = 0; d < bins; d += 1) {
                 fprintf(files[FPT_AVFOL], "%f ", outdat[d]);
@@ -1000,7 +1002,7 @@ int main(int argc, char *argv[]) {
         dfold[d] = outsumt[25][d]; // outsumt/outdat[d] from p-dot fold with zero pdot
     }
     // bestprof[d] best at rolling average setting. Rolling average peak = pkdat.
-    psnr(bins, dfold, mbin, datout, pulw, outdat);
+    psnr(bins, dfold, mbin, &datout, pulw, outdat);
     for (int d = 0; d < bins; d += 1) {
         fprintf(files[FPT_PROF], "%.1f	%f	%f	%f\n", (float)d, (float)outdat[d], bestprof[d],
                 pkdat[d]); /* write txt data to the output text file */
