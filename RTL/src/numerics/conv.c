@@ -1,7 +1,8 @@
 #include "../../includes/numerics/conv.h"
 #include "../../includes/numerics/four.h"
 
-void conv(double sum[], float pulw, int PTS, double period, int M, double pdat[], double targ[], double fftdat[]) {
+void conv(double *restrict sum, float pulw, int PTS, double period, int M, double *restrict pdat,
+          double *restrict targ, double *restrict fftdat) {
     int v, low, high;
     float prat;
 
@@ -16,7 +17,7 @@ void conv(double sum[], float pulw, int PTS, double period, int M, double pdat[]
         pdat[2 * v + 1] = 0;
     }
 
-    four(pdat , PTS, -1); // FFT data
+    four(pdat, PTS, -1); // FFT data
     /*Convolve fold data spectrum with pulse spectrum  */
     for (v = 0; v < PTS; v++) {
         pdat[2 * v] = pdat[2 * v] * targ[v] / targ[0];
@@ -38,7 +39,7 @@ void conv(double sum[], float pulw, int PTS, double period, int M, double pdat[]
         pdat[2 * PTS - 1 - (2 * v + 1)] = 0;
     }
     /*Inverse FT of convolved and filtered data */
-    four(pdat , PTS, 1);
+    four(pdat, PTS, 1);
 
     /*Output convolved real magnitude */
     for (v = 0; v < PTS; v++) {

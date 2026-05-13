@@ -9,7 +9,7 @@ float pdSch(double pd, int Np, float w, float P, float cor) {
         for (n = 2; n < Np + 2; n += 1) {
             nn = (pd * P * ((double)(n - 1) * (double)(n - 2)) / wfac);
             nn = ((double)(sh / 40.0) + nn) / (double)w;
-            nn = nn * nn;
+            nn = pow(nn, 2.0);
             sum = sum + exp(lnf * nn) / Np;
         }
         if (sum > sumo) {

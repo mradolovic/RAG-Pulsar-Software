@@ -3,7 +3,7 @@
 #include "../../includes/numerics/four.h"
 
 
-void spectrum(double sum[], int PTS, double pdat[], double ftdat2[]) {
+void spectrum(double * restrict sum, int PTS, double * restrict pdat, double * restrict ftdat2) {
     int v;
 
     /*FT of folded data */
