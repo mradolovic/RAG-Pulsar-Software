@@ -19,6 +19,7 @@ for MathCad,Excel and/or Python analysis.
 //./pulsardetan rag_obsm.bin 16 1 714.47415 128 1024 6.5 -26.7 -1.3 6 1 2.4 422 50 0 17
 
 #include <math.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,7 +35,7 @@ for MathCad,Excel and/or Python analysis.
 #include "../includes/numerics/spectrum.h"
 #include "../includes/numerics/targgaus.h"
 
-double comprs[262144][32], comprc[262144][32], ave[32][4096], rms[32][4096], mean[32], std[32],
+double comprs[262144][32], comprc[262144], ave[32][4096], rms[32][4096], mean[32], std[32],
     av[32][4096], rm[32][4096];
 double compval[32][262144], compvald[32][262144], compvaldd[32][262144], spect[32][262144];
 double bndcum[32][4096], ftdat[1048576], ftdat2[1048576], allbands[262144], allbandsd[262144],
@@ -292,6 +293,9 @@ int main(int argc, char *argv[]) {
     // http://www.y1pwe.co.uk/RAProgs/LowSNRCorrelationSearch.pdf
     // This is a very slow operation that needs to be speed up, specifically the file loading
     long int cnt = 0;
+    const float *buffer = (float *)malloc(nmax * M * N * sizeof(float));
+    fread((void *)buffer, sizeof(float), nmax * M * N, fptr);
+    fwrite(buffer, sizeof(float), nmax * M * N, files[FPT_CUT]);
     for (long int aux = 0; aux < (nmax * M); aux += 1) { // nmax equals the number of data sets
 
         const long int xs = (double)aux / (double)nmax;
@@ -299,18 +303,16 @@ int main(int argc, char *argv[]) {
         const long int sm = (long int)(((double)b - (double)((long int)b)) * (double)bins);
         const int mval = (int)((long int)sm + (long int)xs * (long int)bins);
 
+        double *array = comprs[mval];
         // Read input data FFT blocks
-
         for (int num = 0; num < N; num += 1) { // N = number of FFT channels
-
-            float val = 0;
-            fread(&val, 4, 1, fptr); // read 4-byte float from file
-            comprs[mval][num] = comprs[mval][num] + ((double)(val * 10)); // fold into bins
-            comprc[mval][num] = comprc[mval][num] + 1;                    // count bin entries
-            fwrite(&val, 4, 1, files[FPT_CUT]); // write bin file - selected sections
+            array[num] = array[num] + ((double)(buffer[aux * N + num] * 10)); // fold into bins
         }
+        comprc[mval] = comprc[mval] + 1; // count bin entries
         cnt = cnt + 1;
     }
+    free((void *)buffer);
+
     printf("\n Count= %ld\n", cnt);
     printf("New Compression Ratio = %f \n", ratio);
     // Confirm number of periods folded etc:
@@ -323,13 +325,11 @@ int main(int argc, char *argv[]) {
            25.0 * 2.0 * numlog / nno1 / numper, (int)numlog);
 
     // Check no count entries are zero
-    for (int num = 0; num < N; num += 1) {
-        for (int bi = 0; bi < M * bins; bi += 1) {
-            comprc[bi][num] += (comprc[bi][num] == 0);
-            // The above is the same as the lines below
-            /*if (comprc[num][bi] == 0)
-                comprc[num][bi] = 1.0;*/
-        }
+    for (int bi = 0; bi < M * bins; bi += 1) {
+        comprc[bi] += (comprc[bi] == 0);
+        // The above is the same as the lines below
+        /*if (comprc[num][bi] == 0)
+            comprc[num][bi] = 1.0;*/
     }
 
     // Calculate M section folded FFT channel data and section mean and rms;  M = number of
@@ -344,7 +344,7 @@ int main(int argc, char *argv[]) {
             // the precision is different if so remove the cast and get both performance and
             // precition boost
             compval[num][c] =
-                (float)(comprs[c][num] / comprc[c][num]); // normalise raw partially folded data
+                (float)(comprs[c][num] / comprc[c]); // normalise raw partially folded data
             ave[num][Mc] = ave[num][Mc] + (float)compval[num][c] / (float)bins; // section average
             rms[num][Mc] = rms[num][Mc] + ((float)(compval[num][c])) * ((float)(compval[num][c])) /
                                               (float)bins; // section squared rms

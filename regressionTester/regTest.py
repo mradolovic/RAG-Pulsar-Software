@@ -35,7 +35,7 @@ result = True
 for file1 in os.listdir("../RTL/bin/"):
     for file2 in os.listdir("../RTL/old_bin/"):
         #Grab all the txt files and comapre them
-        if file1 == file2 and file1.endswith(".txt"):
+        if file1 == file2 and (file1.endswith(".txt") or file1.endswith(".bin")):
             spesific_result = filecmp.cmp("../RTL/bin/"+file1,"../RTL/old_bin/"+file2, shallow=False)
             result = result and spesific_result
             if spesific_result == False:
