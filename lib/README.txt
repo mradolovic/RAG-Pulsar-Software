@@ -1,4 +1,4 @@
-Amateur Pulsar Detection Pipeline v1.0.
+Amateur Pulsar Detection Pipeline
 ================================================================================
 A GUI front-end for pulsar_det_an - Peter East's software alternative to PRESTO.
 

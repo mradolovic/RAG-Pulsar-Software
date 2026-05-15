@@ -1,6 +1,7 @@
 """
     A simple scprit for running Peter East's psrsoft alternative
     30.03.2026. Martin Ante Rogošić
+    Additions by Marko Radolović
 """
 
 import argparse
@@ -28,7 +29,7 @@ if __name__ == "__main__":
     parser.parse_args()
 
     #Compile everything
-    #compile_everything()
+    compile_everything()
 
 
     #Now we need to ask the user to input all of the data
