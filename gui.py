@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import filedialog, scrolledtext
 import subprocess
 import os
+import sys
 
 # The script runs from the project root. lib/ is always next to it.
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -236,7 +237,7 @@ def run_process(inputs, label="pipeline"):
         env = os.environ.copy()
         env["PYTHONPATH"] = ROOT_DIR
         process = subprocess.Popen(
-            ["python", os.path.join(ROOT_DIR, "lib", "RAG_Pulsar_Software.py")],
+            [sys.executable, os.path.join(ROOT_DIR, "lib", "RAG_Pulsar_Software.py")],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -393,7 +394,7 @@ def run_pul_plot_only():
         os.makedirs(pul_plot_results_dir, exist_ok=True)
 
         process = subprocess.Popen(
-            ["python", pul_plot_path, "--no-show"],
+            [sys.executable, pul_plot_path, "--no-show"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
