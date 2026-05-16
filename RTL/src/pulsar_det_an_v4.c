@@ -298,6 +298,15 @@ int main(int argc, char *argv[]) {
     fwrite(buffer, sizeof(float), nmax * M * N, files[FPT_CUT]);
     for (long int aux = 0; aux < (nmax * M); aux += 1) { // nmax equals the number of data sets
 
+	// the current running theory is that the channel is divided into M baskets
+	// aux is the index of an element in the channel
+	// nmax is the number of element in one basket
+	// M is the number of baskets in one channel
+	// xs is the index of each basket
+	// b is the number of full pulsar periods up to index aux
+	// the double long int chaos is to get the decimal part without the whole part e.g. 0.12345
+	// sm has to be something with the phase of the signal...
+
         const long int xs = (double)aux / (double)nmax;
         const double b = (double)aux * (double)clck / (double)period;
         const long int sm = (long int)(((double)b - (double)((long int)b)) * (double)bins);
