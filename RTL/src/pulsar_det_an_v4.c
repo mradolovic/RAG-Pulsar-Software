@@ -35,16 +35,15 @@ for MathCad,Excel and/or Python analysis.
 #include "../includes/numerics/spectrum.h"
 #include "../includes/numerics/targgaus.h"
 
-double comprs[262144][32], comprc[262144], ave[32][4096], rms[32][4096], mean[32], std[32],
-    av[32][4096], rm[32][4096];
+double comprs[262144][32], ave[32][4096], rms[32][4096], mean[32], std[32], av[32][4096],
+    rm[32][4096];
 double compval[32][262144], compvald[32][262144], compvaldd[32][262144], spect[32][262144];
-double bndcum[32][4096], ftdat[1048576], ftdat2[1048576], allbands[262144], allbandsd[262144],
-    allbandsdd[262144], spallbands[262144];
+double bndcum[32][4096], ftdat2[1048576], allbands[262144], allbandsd[262144], allbandsdd[262144],
+    spallbands[262144];
 // It appears there is some uncecessary back and forth between dfold and ddfold which could be
 // optimized
-double ddispbands[256][131072], dfold[4096], ddfold[256][4096], outdat[4096], fftdat[1048576];
-// pdat is suspicious here, it gets passed empty to certain function but does nothing later on
-double bstdmprf[4096], pdat[1048576], targ[1048576];
+double ddispbands[256][131072], dfold[4096], ddfold[256][4096], outdat[4096];
+double bstdmprf[4096], targ[1048576];
 double sumt[4096], count[4096], outsumt[100][4096], pkdat[4096];
 
 int main(int argc, char *argv[]) {
@@ -293,19 +292,20 @@ int main(int argc, char *argv[]) {
     // http://www.y1pwe.co.uk/RAProgs/LowSNRCorrelationSearch.pdf
     // This is a very slow operation that needs to be speed up, specifically the file loading
     long int cnt = 0;
+    double *comprc = calloc(262144, sizeof(double));
     const float *buffer = (float *)malloc(nmax * M * N * sizeof(float));
     fread((void *)buffer, sizeof(float), nmax * M * N, fptr);
     fwrite(buffer, sizeof(float), nmax * M * N, files[FPT_CUT]);
     for (long int aux = 0; aux < (nmax * M); aux += 1) { // nmax equals the number of data sets
 
-	// the current running theory is that the channel is divided into M baskets
-	// aux is the index of an element in the channel
-	// nmax is the number of element in one basket
-	// M is the number of baskets in one channel
-	// xs is the index of each basket
-	// b is the number of full pulsar periods up to index aux
-	// the double long int chaos is to get the decimal part without the whole part e.g. 0.12345
-	// sm has to be something with the phase of the signal...
+        // the current running theory is that the channel is divided into M baskets
+        // aux is the index of an element in the channel
+        // nmax is the number of element in one basket
+        // M is the number of baskets in one channel
+        // xs is the index of each basket
+        // b is the number of full pulsar periods up to index aux
+        // the double long int chaos is to get the decimal part without the whole part e.g. 0.12345
+        // sm has to be something with the phase of the signal...
 
         const long int xs = (double)aux / (double)nmax;
         const double b = (double)aux * (double)clck / (double)period;
@@ -359,7 +359,7 @@ int main(int argc, char *argv[]) {
                                               (float)bins; // section squared rms
         }
     }
-
+    free(comprc);
     // DC restore sections - removes long-term  receiver gain drift
     for (int num = 0; num < N; num += 1) // number of FFT channels
     {
@@ -408,7 +408,12 @@ int main(int argc, char *argv[]) {
 
     // Matched-filter data bandwidth to just pass pulsar pulse - FFT data and Convolve bands
     for (int num = 0; num < N; num += 1) { // printf("	M1=%d	N=%d	bins=%d\n",M,N,bins);
+        double *ftdat = calloc(1048576, sizeof(double));
         memcpy(ftdat, compval[num], PTS * sizeof(double));
+        // This pdat here serves to store temporary results in the conv and spectrum functions.
+        // Ideally it could bee placed with in them
+        double *pdat = calloc(1048576, sizeof(double));
+        double *fftdat = calloc(1048576, sizeof(double));
         conv(ftdat, pulw, PTS, period, M, pdat, targ,
              fftdat); // outputs ftdat input blocks asconvolved and filtered fftdat blocks
         spectrum(fftdat, PTS, pdat, ftdat2); // outputs fftdat input block spectra as ftdat2
@@ -417,6 +422,9 @@ int main(int argc, char *argv[]) {
             spect[num][c] = ftdat2[c];
             spallbands[c] = spallbands[c] + (spect[num][c]); // combine bands all bands spectrum
         }
+        free(ftdat);
+        free(pdat);
+        free(fftdat);
     }
 
     // printf("M2=%d	N=%d	bins=%d\n",M,N,PTS/M);

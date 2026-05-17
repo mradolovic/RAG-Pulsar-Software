@@ -1,6 +1,6 @@
 CC      = gcc
 #CFLAGS  = -O3 -lm -D_FILE_OFFSET_BITS=64
-CFLAGS = -O0  -g3 -D_FILE_OFFSET_BITS=64 -Wall -Wpedantic -Wextra   -fno-omit-frame-pointer -fopt-info-vec-missed=vec.missed -march=native
+CFLAGS = -O3  -g3 -D_FILE_OFFSET_BITS=64 -Wall -Wpedantic -Wextra   -fno-omit-frame-pointer -fopt-info-vec-missed=vec.missed -march=native
 LDFLAGS = -lm 
 SRC_DIR = src
 BIN_DIR = bin
