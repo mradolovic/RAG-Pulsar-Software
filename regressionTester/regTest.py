@@ -47,6 +47,7 @@ if result == True:
 else:
     print("The outputs are not equal")
 
+subprocess.run(["diff bin/ old_bin/ > differences"], cwd="../RTL/", shell=True)
 #Okay we have outputed the results, it would be nice now if we returend everything to as it was
 #It is not important whether the files are equal or not we can still delete all of this
 
