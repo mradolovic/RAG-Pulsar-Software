@@ -69,7 +69,11 @@ def parse_field(raw, dtype, can_vary):
             return values, kind, []
 
     # Space-separated parsing
-    parts = stripped.split()
+    # For str fields, treat the entire input as one value (paths may contain spaces)
+    if dtype is str:
+        parts = [stripped] if stripped else []
+    else:
+        parts = stripped.split()
     if not parts:
         return [], FieldKind.SINGLE, []
 
