@@ -9,7 +9,7 @@ float perSch(double p, int Np, float w, float P) {
     for (n = 0; n < Np; n += 1) {
         nn = (p * (1.0 - (double)(n) / (double)Np));
         nn = nn / wfac;
-        nn = nn * nn;
+        nn = pow(nn, 2.0);
         sum = sum + exp(lnf * nn) / Np;
     }
     return ((float)sum);
