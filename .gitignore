@@ -19,6 +19,10 @@ data/
 results/pulsar_det_an_results/*.txt
 results/pul_plot_results/
 
+# -- vectors missed and profile.sh
+RTL/vec.missed
+RTL/profile.sh
+
 # Keep blank templates in results
 !results/pulsar_det_an_results/Blankf.txt
 !results/pulsar_det_an_results/Blanks.txt
