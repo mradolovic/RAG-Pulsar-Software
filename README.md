@@ -165,6 +165,15 @@ Arch Linux:
 
 - install packages from requirements.txt by hand. Beware of (possible) different package names with Pacman.
 
+
+Absolute minimum possible requirements:
+- numpy>=1.21.6
+- matplotlib>=3.5.0
+- Pillow>=8.3.2
+- astropy>=5.0
+
+- Python: 3.10.0
+
 ---
 
 # Installation
