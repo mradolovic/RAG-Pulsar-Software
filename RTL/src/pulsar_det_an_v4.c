@@ -35,10 +35,14 @@ for MathCad,Excel and/or Python analysis.
 #include "../includes/numerics/spectrum.h"
 #include "../includes/numerics/targgaus.h"
 
-double comprs[262144][32], ave[4096][32], rms[32][4096], mean[32], std[32], av[32][4096],
-    rm[32][4096];
-double compval[32][262144], compvald[262144][32], compvaldd[32][262144], spect[32][262144];
-double bndcum[32][4096], ftdat2[1048576], allbands[262144], allbandsd[262144], allbandsdd[262144],
+#define NUM_OF_CHANNELS 100
+
+double comprs[262144][NUM_OF_CHANNELS], ave[4096][NUM_OF_CHANNELS], rms[NUM_OF_CHANNELS][4096],
+    mean[NUM_OF_CHANNELS], std[NUM_OF_CHANNELS], av[NUM_OF_CHANNELS][4096],
+    rm[NUM_OF_CHANNELS][4096];
+double compval[NUM_OF_CHANNELS][262144], compvald[262144][NUM_OF_CHANNELS],
+    compvaldd[NUM_OF_CHANNELS][262144], spect[NUM_OF_CHANNELS][262144];
+double bndcum[NUM_OF_CHANNELS][4096], ftdat2[1048576], allbands[262144], allbandsd[262144], allbandsdd[262144],
     spallbands[262144];
 // It appears there is some uncecessary back and forth between dfold and ddfold which could be
 // optimized
@@ -513,9 +517,9 @@ int main(int argc, char *argv[]) {
     for (int num = 0; num < N; num += 1) {
         for (long int c = 0; c < PTS; c += 1) {
             compvaldd[num][c] =
-                compval[num][(c + (int)(((float)((num - ((float)(N) / 2.0 - 0.5))) * delta)) +
-                              PTS) %
-                             PTS];
+                compval[num]
+                       [(c + (int)(((float)((num - ((float)(N) / 2.0 - 0.5))) * delta)) + PTS) %
+                        PTS];
         }
     }
 

@@ -1,0 +1,31 @@
+Pulsar Data	
+Input Data file: = ../data/data.bin
+Threshold = 6.0 x rms	Period Range Multiplier = 1.00
+Pulsar Period = 714.473221 ms	
+Data clock= 1.00 ms	
+Pulsar Pulse Width = 6.50 ms	
+Pulsar Dispersion Measure = 26.70	
+Input file bytes = 432076224	
+RF Centre = 422.0 MHz,	RF Bandwidth = 2.4 MHz
+DM Band Delay = 7.077ms, No. Delay bins = 10.143
+No. Data Samples = 216038112
+No: FFT Bands = 16
+Input Data per FFT Band = 13502382
+No. of Output Fold Sections = 128 ; No. bins = 1024
+No. of Output samples = 131072
+Working file duration = 13502 secs
+Number of pulsar periods = 18897
+P-dot factor = 10000
+ppm adjustment = -1.30
+Max Pulse ppm drift = -17.55 ms
+Compression Ratio = 147.64	
+Period Search Range = -25.00 ppm to 25.00 ppm 
+P-dot Search Range = -26.46 ppm/10000 to 26.46 ppm/10000 
+Rolling Average Number = 50
+Start section = 0
+End section = 127
+
+Attenuated Bands: 
+Noise Substitute Sections: 
+Max bin = 80	Max SNR = 2.68
+Best Section Range SNR = 5.50	Section Centre 48	Best Section Range 1
