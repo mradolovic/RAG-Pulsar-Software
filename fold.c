@@ -147,78 +147,13 @@ pdat[2*v+1] = 0;
 // u ovoj tocki ti imas 1024 tocke u arrayu pdat, to je output
 //tu sm jos uvijek u vremenskoj domeni 
 
-
-bforce(pdat,PTS,1);
-//pdat[PTS]=0;
-for(v=0;v<PTS;v++){
-
-targ[2*v] = gauss(v,(pulw*PTS/periodf),(int)PTS/2);
-targ[2*v+1] = 0; //gauss(v,(pulw*PTS/periodf),(int)PTS/2);
-
-//printf("%d    %f\n",v,targ[v]);
-}
-
-bforce(targ,PTS,1);
-
-for(v=0;v<PTS;v++){
-
-mtarg[v] = sqrt(targ[2*v]*targ[2*v]+targ[2*v+1]*targ[2*v+1]);
-
-
-//printf("%d    %f\n",v,targ[v]);
-}
-
-printf("%f\n",mean);
-
-for(v=0;v<PTS;v++){
-
-prod[2*v] = (pdat[2*v])*mtarg[v]/mtarg[0];
-prod[2*v+1] = pdat[2*v+1]*mtarg[v]/mtarg[0];
-
-//printf("%d    %f\n",v,targ[v]);
-}
-
-
-bforce(prod,PTS,-1);
-
-for(v=0;v<PTS;v++){
-
-out[v] = (sqrt(prod[2*v]*prod[2*v]+prod[2*v+1]*prod[2*v+1]))/(float)PTS;
-
-
-//printf("%d    %f\n",v,targ[v]);
-}
-
-for(v=0;v<PTS;v++){
-
-mean=mean+out[v]/PTS;
-//printf("%d    %f\n",v,targ[v]);
-}
-
-for(v=0;v<PTS;v++){
-
-out[v] = out[v]-mean;
-
-
-//printf("%d    %f\n",v,targ[v]);
-}
-
-
-
-
-
-psnr(PTS,out);
-
-fpto = fopen(argv[2],"w");
-out_dat();
+//fpto = fopen(argv[2],"w");
+//out_dat();
 
 fclose(fptr);
-fclose(fpto);
+//fclose(fpto);
 
-printf("\nInfile=%s    Outfile=%s   End bin=%d   coun=%lld\n",argv[1],argv[2],(int)tim,coun);
-
-
-
+//printf("\nInfile=%s    Outfile=%s   End bin=%d   coun=%lld\n",argv[1],argv[2],(int)tim,coun);
 
 exit(0);
 }

@@ -147,38 +147,28 @@ pdat[2*v+1] = 0;
 // u ovoj tocki ti imas 1024 tocke u arrayu pdat, to je output
 //tu sm jos uvijek u vremenskoj domeni 
 
-
+//FFT of data stream
 bforce(pdat,PTS,1);
-//pdat[PTS]=0;
-for(v=0;v<PTS;v++){
 
+for(v=0;v<PTS;v++){
 targ[2*v] = gauss(v,(pulw*PTS/periodf),(int)PTS/2);
 targ[2*v+1] = 0; //gauss(v,(pulw*PTS/periodf),(int)PTS/2);
-
-//printf("%d    %f\n",v,targ[v]);
 }
-
+//FFT of gaussian pulse
 bforce(targ,PTS,1);
 
 for(v=0;v<PTS;v++){
-
 mtarg[v] = sqrt(targ[2*v]*targ[2*v]+targ[2*v+1]*targ[2*v+1]);
-
-
-//printf("%d    %f\n",v,targ[v]);
 }
 
 printf("%f\n",mean);
 
 for(v=0;v<PTS;v++){
-
 prod[2*v] = (pdat[2*v])*mtarg[v]/mtarg[0];
 prod[2*v+1] = pdat[2*v+1]*mtarg[v]/mtarg[0];
-
-//printf("%d    %f\n",v,targ[v]);
 }
 
-
+//ifft
 bforce(prod,PTS,-1);
 
 for(v=0;v<PTS;v++){

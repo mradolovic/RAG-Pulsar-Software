@@ -1,0 +1,4 @@
+potencija broja 2 za fft
+4 graf, snr versus broja foldova uz fiksno vrijeme snimanja (30 min)
+
+za match.c trebas dobit power array prij enego sto ga utrpas u prvi "bforce(pdat,PTS,1);"
