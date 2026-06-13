@@ -1,4 +1,3 @@
-
 /*rapulsar2con.c	   pwe: 02/04/2015
 Takes rtlsdr .bin files, applies averaging and folding algorithm in blocks. Outputs text file of folded average.
 
@@ -97,46 +96,34 @@ printf("Please wait....\n");
 /*read input file,decode I and Q, determine power. Sum powers in folded period and on completion calculate bin average.
  At end of input file, output text file with averaged data*/
 
- {coun=0;
- //inkrementam po košarama
- for(ss=0;ss<p_num;ss++)
-    {
-	//inkrementam po samplu/paru UNUTAR kosare
-    for(s=0;s<2*PTS;s+=2)
-        {
-		//I sample	
-        ucha=getc(fptr);
-        dats[s]=(float)ucha+0.0;
-        dats[s]=(dats[s]-127.5);
-		//Q sample
-        ucha=getc(fptr);
-        dats[s+1]=(float)ucha+0.0;
-        dats[s+1]=(dats[s+1]-127.5);
-		//snaga
-        smt=dats[s]*dats[s]+dats[s+1]*dats[s+1];
+coun = 0;
+//we have to take power of two points for FFT
+file_end = largest_pow2(file_end);
 
-		//tim mi kaze koliko tocaka sam daleko od pocetka podatka
-        tim=(double)(s/2+(ss*PTS));
-		//res ovdje je u mjernoj jedinici sekunda po tocki
-        res=(double)clck/(dt*(double)1000.0);
-		//res mi kaze koliko sam sekundi od pocetka podataka
-        res=(double)tim*(double)res;
-		//neki modulo shit
-        tim=(long long int)res % (long long int)PTS;
+// inkrementam po samplu/paru UNUTAR kosare
+for (s = 0; s < file_end; s += 2){
+	// I sample
+	ucha = getc(fptr);
+	dats[s] = (float)ucha + 0.0;
+	dats[s] = (dats[s] - 127.5);
+	// Q sample
+	ucha = getc(fptr);
+	dats[s + 1] = (float)ucha + 0.0;
+	dats[s + 1] = (dats[s + 1] - 127.5);
+	// snaga
+	smt = dats[s] * dats[s] + dats[s + 1] * dats[s + 1];
 
-        sumt[(int)tim] = sumt[(int)tim] + smt;
-        count[(int)tim] = count[(int)tim] + 1;
-		coun=coun+1;
-                    /* printf("%ld  %ld   %d    %f   %ld   %4.0f\n",PTS,p_num,s/2,res,tim,count[tim]);*/
-        }//if (coun%1000000==coun/1000000)printf("%ld",coun%1000000);
-    }
+	sumt[s] = sumt[s] + smt;
+	count[s] = count[s] + 1;
+	coun = coun + 1;
+	/* printf("%ld  %ld   %d    %f   %ld   %4.0f\n",PTS,p_num,s/2,res,tim,count[tim]);*/
+} // if (coun%1000000==coun/1000000)printf("%ld",coun%1000000);
 
- }
 
 printf("No. bins=%d  Count/bin=%lld\n",PTS,count[(int)tim]);
 
 //averaging every point in the output bin
-for(v=0;v<PTS;v++){
+for(v=0;v<file_end;v++){
 
 pdat[2*v] = sumt[v]/count[v];
 pdat[2*v+1] = 0;
@@ -148,9 +135,9 @@ pdat[2*v+1] = 0;
 //tu sm jos uvijek u vremenskoj domeni 
 
 
-bforce(pdat,PTS,1);
+bforce(pdat,file_end,1);
 //pdat[PTS]=0;
-for(v=0;v<PTS;v++){
+for(v=0;v<file_end;v++){
 
 targ[2*v] = gauss(v,(pulw*PTS/periodf),(int)PTS/2);
 targ[2*v+1] = 0; //gauss(v,(pulw*PTS/periodf),(int)PTS/2);
@@ -223,6 +210,13 @@ printf("\nInfile=%s    Outfile=%s   End bin=%d   coun=%lld\n",argv[1],argv[2],(i
 exit(0);
 }
 
+long long largest_pow2(long long n) {
+    if (n <= 0) return 0;
+    int exp = (int)log2((double)n);
+    long long m = 1LL << exp;
+    if (m > n) m >>= 1;  // float rounding correction
+    return m;
+}
 
 
 void out_dat(void)
