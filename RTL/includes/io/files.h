@@ -1,5 +1,5 @@
-#ifndef __OUTPUTS__
-#define __OUTPUTS__
+#ifndef __FILES__
+#define __FILES__
 #include <stdio.h>
 #include <stdlib.h>
 

@@ -1,6 +1,6 @@
 CC      = gcc
 #CFLAGS  = -O3 -lm -D_FILE_OFFSET_BITS=64
-CFLAGS = -O3  -g3 -D_FILE_OFFSET_BITS=64 -Wall -Wpedantic -Wextra   -fno-omit-frame-pointer -fopt-info-vec-missed=vec.missed -march=native -fno-inline-functions-called-once
+CFLAGS = -O3  -g3 -D_FILE_OFFSET_BITS=64 -Wall -Wpedantic -Wextra -fno-omit-frame-pointer -fopt-info-vec-missed=vec.missed -march=native  
 LDFLAGS = -lm 
 SRC_DIR = src
 BIN_DIR = bin
@@ -22,13 +22,15 @@ else
 endif
 
 ## added pulsar_det_an_v4 to compile - remove after testing, 20260416, Marko Radolovic
-TARGETS = $(BIN_DIR)/FileTrim$(EXT) \
-          $(BIN_DIR)/RAFFT22Lg$(EXT) \
-          $(BIN_DIR)/RTLChannel4bin$(EXT) \
-          $(BIN_DIR)/pulsar_det_an_v4$(EXT) \
-          $(BIN_DIR)/rapulsar2con$(EXT) \
-          $(BIN_DIR)/Blanks.txt \
-          $(BIN_DIR)/Blankf.txt 
+
+ TARGETS = $(BIN_DIR)/pulsar_det_an_v4$(EXT) \
+		   $(BIN_DIR)/Blanks.txt \
+           $(BIN_DIR)/Blankf.txt \
+		   $(BIN_DIR)/FileTrim$(EXT) \
+           $(BIN_DIR)/RAFFT22Lg$(EXT) \
+           $(BIN_DIR)/RTLChannel4bin$(EXT) \
+           $(BIN_DIR)/rapulsar2con$(EXT) \
+          
 
 
 
@@ -65,6 +67,9 @@ $(BIN_DIR)/targgaus.o : $(SRC_DIR)/numerics/targgaus.c $(INCLUDE_DIR)/numerics/t
 ##object files from io directory
 $(BIN_DIR)/files.o : $(SRC_DIR)/io/files.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BIN_DIR)/outputs.o : $(SRC_DIR)/io/outputs.c
+	$(CC) $(CFLAGS) -c $< -o $@
 ####################################################################################################
 ## object files that represent the targets
 NUMERICS = \
@@ -79,7 +84,8 @@ NUMERICS = \
 	$(BIN_DIR)/targgaus.o
 
 IO = \
-	$(BIN_DIR)/files.o
+	$(BIN_DIR)/files.o \
+	$(BIN_DIR)/outputs.o
 
 $(BIN_DIR)/pulsar_det_an_v4.o : $(SRC_DIR)/pulsar_det_an_v4.c $(NUMERICS)
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -98,8 +104,8 @@ $(BIN_DIR)/RTLChannel4bin$(EXT): $(SRC_DIR)/RTLChannel4bin.c
 ####################################################################################################
 ## Finally we link the o files for the relevant targets (right now only pulsar_det_an_v4)
 
-$(BIN_DIR)/pulsar_det_an_v4$(EXT) : $(BIN_DIR)/pulsar_det_an_v4.o $(NUMERICS) $(IO)
-	$(CC) $^ -o $@ $(LDFLAGS)
+$(BIN_DIR)/pulsar_det_an_v4$(EXT) : $(BIN_DIR)/pulsar_det_an_v4.o $(NUMERICS) $(IO) 
+	$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS)
 ####################################################################################################
 .PHONY: all clean
 
