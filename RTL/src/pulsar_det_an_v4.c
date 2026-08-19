@@ -37,6 +37,7 @@ for MathCad,Excel and/or Python analysis.
 #include "../includes/numerics/spectrum.h"
 #include "../includes/numerics/targgaus.h"
 
+#define BYTES_PER_SAMPLE (sizeof(float))
 // It appears there is some uncecessary back and forth between dfold and ddfold which could be
 // optimized
 
@@ -46,7 +47,8 @@ for MathCad,Excel and/or Python analysis.
 // Fix so that lack of Blaf and Blas thwros a warning, not crash the program as the
 // semantics all the way down allow this
 
-//TODO rewrite the array allocations so that they allocate continuous arrays therefore we get cache wins
+// TODO rewrite the array allocations so that they allocate continuous arrays therefore we get cache
+// wins
 
 int main(int argc, char *argv[]) {
     FILE **files = open_files();
@@ -174,7 +176,7 @@ int main(int argc, char *argv[]) {
 
     /*find length of input file*/
     fseeko(fptr, 0L, SEEK_END);
-    const long int file_end = ftello(fptr) / 4;
+    const long int file_end = ftello(fptr) / BYTES_PER_SAMPLE;
 
     // print header
     printf("Input file bytes = %ld	\n", file_end);
@@ -186,7 +188,6 @@ int main(int argc, char *argv[]) {
     const double td = 8.3 * rfband * DM * 1000000.0 / pow(f0, 3.0);
     printf("RF Centre = %.1f MHz,	RF Bandwidth = %.1f MHz\n", f0, rfband);
     printf("DM Band Delay = %.3fms, Equivalent No: of bins = %.3f\n", td, (td * bins / period));
-
 
     // Command settings output data file
     fprintf(files[FPT_DAT], "%d %d %d %d \n", N, M, bins, rolav);
@@ -209,27 +210,32 @@ int main(int argc, char *argv[]) {
     printf("No: of Pulsar Periods = %.2f\n", nopers);
 
     const double per_sampls = period * N / clck; // number of data
-                                                                         // samples in period
+                                                 // samples in period
     const double sect_sampls = (double)Tt0 * 1000.0 * (double)N / (double)M /
                                (double)clck; // number of data samples in section
     printf("No: of useful periods = %d\n", (int)nopers);
     double ratio = (double)(sect_sampls / per_sampls); // data compression ratio
 
     // Start and end section for reducing analysis section range
-    long int start = ((long int)((double)strt * ratio + 0.5) * (double)per_sampls / N) * 4 * N;
-    long int end = ((long int)((double)stp * ratio + 0.5) * (double)per_sampls / N) * 4 * N;
-    const long int nmax = (end - start) / 4 / N / M; // No. of compressed pulsar data points
+    long int start =
+        ((long int)((double)strt * ratio + 0.5) * (double)per_sampls / N) * BYTES_PER_SAMPLE * N;
+    long int end =
+        ((long int)((double)stp * ratio + 0.5) * (double)per_sampls / N) * BYTES_PER_SAMPLE * N;
+    const long int nmax =
+        (end - start) / BYTES_PER_SAMPLE / N / M; // No. of compressed pulsar data points
 
     printf("ratio = %f\n", ratio);
     printf("Start Byte = %ld\n", start);
-    printf("Start Section Period  = %f\n", (double)start * clck / (double)N / period / 4);
+    printf("Start Section Period  = %f\n",
+           (double)start * clck / (double)N / period / BYTES_PER_SAMPLE);
     printf("End Byte = %ld\n", end);
-    printf("End Section Period Number = %f\n", (double)end * clck / (double)N / period / 4);
+    printf("End Section Period Number = %f\n",
+           (double)end * clck / (double)N / period / BYTES_PER_SAMPLE);
 
     // set file pointer to start
     fseeko(fptr, start, SEEK_SET);
-    start = start / 4; // 4-byte data word
-    end = end / 4;     // 4-byte data word
+    start = start / BYTES_PER_SAMPLE; // 4-byte data word
+    end = end / BYTES_PER_SAMPLE;     // 4-byte data word
     printf("Start Section = %ld	Stop Section = %ld\n", strt, stp - 1);
     printf("No: of Output Fold Sections  %d; No. Fold Bins = %d\n", M, bins);
     printf("No: of Output Data Bins = %d\n", M * bins);
@@ -270,7 +276,7 @@ int main(int argc, char *argv[]) {
     fprintf(files[FPT_TEXT], "Data clock= %.2f ms \n", clck);
     fprintf(files[FPT_TEXT], "Pulsar Pulse Width = %.2f ms	\n", pulw);
     fprintf(files[FPT_TEXT], "Pulsar Dispersion Measure = %.2f	\n", DM);
-    fprintf(files[FPT_TEXT], "Input file bytes = %ld	\n", file_end * 2);
+    fprintf(files[FPT_TEXT], "Input file bytes = %ld	\n", file_end * BYTES_PER_SAMPLE);
     fprintf(files[FPT_TEXT], "RF Centre = %.1f MHz,	RF Bandwidth = %.1f MHz\n", f0, rfband);
     fprintf(files[FPT_TEXT], "DM Band Delay = %.3fms, No. Delay bins = %.3f\n", td,
             (td * bins / period));
@@ -288,8 +294,8 @@ int main(int argc, char *argv[]) {
     fprintf(files[FPT_TEXT], "Period Search Range = %.2lf ppm to %.2lf ppm \n", -25.0 / nno1,
             25.0 / nno1);
     fprintf(files[FPT_TEXT], "P-dot Search Range = %.2lf ppm/%d to %.2lf ppm/%d \n",
-            -25.0 * 2.0 * numlog / nno1 / numper, (int)numlog,
-            25.0 * 2.0 * numlog / nno1 / numper, (int)numlog);
+            -25.0 * 2.0 * numlog / nno1 / numper, (int)numlog, 25.0 * 2.0 * numlog / nno1 / numper,
+            (int)numlog);
     fprintf(files[FPT_TEXT], "Rolling Average Number = %d\n", rolav);
     fprintf(files[FPT_TEXT], "Start section = %ld\n", strt);
     fprintf(files[FPT_TEXT], "End section = %ld\n", stp - 1);
@@ -689,12 +695,13 @@ int main(int argc, char *argv[]) {
         }
         const double dm = (((double)N * (e - dmn) / dmdiv)) * (period / bins) * (DM / td);
         dmsrch = DMSch(dm, N, DM, td, pulw);
-        printf("DM =	%.2f	SNR =  %.2f	bin = %d	e = %d	dmsrch = %.2f\n",
-               (float)((float)(N) * ((float)e - dmn) / dmdiv) * (period / (float)bins) * (DM / td),
-               datout.std_snr, (int)datout.nx, (int)((e - dmn) * dmdiv),
-               dmsrch); //*1.0*(int)period/(float)bins*DM/td
-        fprintf(files[FPT_DMS], "%.2f	%.2f	%d	%d	%.2f\n",
-                (float)((float)(N) * ((float)e - dmn) / dmdiv) * (period / (float)bins) * (DM / td),
+        printf("DM =	%.2lf	SNR =  %.2lf	bin = %d	e = %d	dmsrch = %.2lf\n",
+               (double)((double)(N) * ((double)e - dmn) / dmdiv) * (period / (double)bins) *
+                   (DM / td),
+               datout.std_snr, (int)datout.nx, (int)((e - dmn) * dmdiv), dmsrch);
+        fprintf(files[FPT_DMS], "%.2lf	%.2lf	%d	%d	%.2lf\n",
+                (double)((double)(N) * ((double)e - dmn) / dmdiv) * (period / (double)bins) *
+                    (DM / td),
                 datout.std_snr, (int)datout.nx, (int)((e - dmn) * dmdiv),
                 dmsrch); /* write txt data to the output text file */
 
@@ -713,11 +720,12 @@ int main(int argc, char *argv[]) {
 
     printf("Max bin = %d	Best DM SNR = %.2f	emax = %d\n", (int)(mbin), bstdmprf[(int)mbin],
            emax);
-    fprintf(files[FPT_MAX], "%d	%.2f	%.2f	%.2f\n", (int)(mbin), (float)mmx,
-            ((float)((float)N * ((float)emax - (float)dmn) * period / (float)dmdiv)) / (float)bins,
+    fprintf(files[FPT_MAX], "%d	%.2lf	%.2f	%.2lf\n", (int)(mbin), (double)mmx,
+            ((double)((double)N * ((double)emax - (double)dmn) * period / (double)dmdiv)) /
+                (double)bins,
             td);
-    fprintf(files[FPT_TEXT], "Max bin = %d	Max SNR = %.2f\n", (int)(mbin),
-            (float)bstdmprf[(int)mbin]);
+    fprintf(files[FPT_TEXT], "Max bin = %d	Max SNR = %.2lf\n", (int)(mbin),
+            (double)bstdmprf[(int)mbin]);
 
     // Build dmSrchns.txt - Dispersion Search SNR - with target pulse range blanked
     for (int e = 0; e < dmx; e += 1) {
@@ -728,8 +736,8 @@ int main(int argc, char *argv[]) {
         }
         psnrReturn datout;
         psnr(bins, dfold, mbin, &datout, pulw, outdat);
-        fprintf(files[FPT_DMNS], "%.2f	%.2f	%d\n",
-                (float)((float)(N) * ((float)e - dmn) / dmdiv) * (period / (float)bins) * (DM / td),
+        fprintf(files[FPT_DMNS], "%.2lf	%.2lf	%d\n",
+                (double)((double)(N) * ((double)e - dmn) / dmdiv) * (period / (double)bins) * (DM / td),
                 datout.std_snr, (int)datout.nx); /* write txt data to the output text file */
     }
     printf("\n");
@@ -853,8 +861,8 @@ int main(int argc, char *argv[]) {
         }
         fprintf(files[FPT_PULD], "\n");
         thry = maxx * sqrt((double)m / (double)M);
-        fprintf(files[FPT_SEC], "%d	%.2f	%d	%.2f\n", m, datout.std_snr, (int)datout.nx,
-                (float)thry); /* write txt data to the output text file */
+        fprintf(files[FPT_SEC], "%d	%.2lf	%d	%.2lf\n", m, datout.std_snr, (int)datout.nx,
+                (double)thry); /* write txt data to the output text file */
         psnr(bins, dfold, mbin, &datout, pulw, outdat);
         for (int d = 0; d < bins; d++) {
             fprintf(files[FPT_PULDD], "  %.2f",
@@ -924,14 +932,14 @@ int main(int argc, char *argv[]) {
         memcpy(dfold, outsumt[st], bins * sizeof(double));
         psnr(bins, dfold, mbin, &datout, pulw, outdat);
         pspr = 3 + (maxx - 3) * perSch((double)(st - 25) * 1 / nno1, (numper), pulw, period);
-        printf("ppm = %.2f	SNR =  %.2f	bin = %d\n", (float)(st - 25) / nno1, datout.std_snr,
+        printf("ppm = %.2lf	SNR =  %.2lf	bin = %d\n", (double)(st - 25) / nno1, datout.std_snr,
                (int)datout.nx);
-        fprintf(files[FPT_PER], " %.5f	%.5f	%d	%.3f\n", (float)(st - 25) / nno1,
+        fprintf(files[FPT_PER], " %.5lf	%.5lf	%d	%.3lf\n", (double)(st - 25) / nno1,
                 datout.std_snr, (int)datout.nx, pspr); /* write txt data to the output text file */
         if (st > 19 && st < 31) {
             for (int d = 0; d < bins; d += 1) {
-                fprintf(files[FPT_PFOLD], "%f	",
-                        (float)outdat[d]); // target period folds over the selected period range
+                fprintf(files[FPT_PFOLD], "%lf	",
+                        (double)outdat[d]); // target period folds over the selected period range
             }
             fprintf(files[FPT_PFOLD], "\n");
         }
@@ -970,13 +978,13 @@ int main(int argc, char *argv[]) {
     for (int st = 0; st < 51; st += 1) {
         memcpy(dfold, outsumt[st], bins * sizeof(double));
         psnr(bins, dfold, mbin, &datout, pulw, outdat);
-        pdpr = 3 + (maxx - 3) * pdSch((float)(st - 25) * 2 * numlog * .5 / (double)M / ratio / nno1,
-                                      (numper), pulw, period, numlog);
-        printf("pdot = %.2f	SNR =  %.2f	bin = %d\n",
-               (float)(st - 25) * 2 * numlog / (double)M / ratio / 1 / nno1, datout.std_snr,
+        const double pre_compute = (double)(st - 25) * 2 * numlog * .5 / (double)M / ratio / nno1;
+        pdpr = 3 + (maxx - 3) * pdSch(pre_compute, (numper), pulw, period, numlog);
+        printf("pdot = %.2lf	SNR =  %.2lf	bin = %d\n",
+               (double)(st - 25) * 2 * numlog / (double)M / ratio / 1 / nno1, datout.std_snr,
                (int)datout.nx);
-        fprintf(files[FPT_PD], " %.5f	%.5f	%d	%.5f\n",
-                (float)(st - 25) * 2 * numlog / (double)M / ratio / 1 / nno1, datout.std_snr,
+        fprintf(files[FPT_PD], " %.5lf	%.5lf	%d	%.5lf\n",
+                (double)(st - 25) * 2 * numlog / (double)M / ratio / 1 / nno1, datout.std_snr,
                 (int)datout.nx, pdpr); /* write txt data to the output text file */
     }
     printf("\n");
@@ -1013,7 +1021,7 @@ int main(int argc, char *argv[]) {
     free(count);
     // Build secavsnr.txt - Rolling Window/Average SNR
     int nxx = 0;
-    float max = 0, pkmax = 0;
+    double max = 0, pkmax = 0;
     double bestprof[bins];
     int span = 0, centre = 0;
     double pkdat[bins];
