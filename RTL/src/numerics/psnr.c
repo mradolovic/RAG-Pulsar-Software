@@ -1,34 +1,7 @@
 #include "../../includes/numerics/psnr.h"
-// Simple Peak to rms noise ratio
-/*void snr(int n, double dat[]) {
-    int t, a;
-    double mn = 0, rms = 0, mx = 0, nx = 0, mb = 0;
-    memset(datout, 0, sizeof(datout));
-    for (t = 0; t < n; t++) {
-        mn = mn + dat[t] / n;              // calculate mean
-        rms = rms + (dat[t] * dat[t]) / n; // calculate mean square
-        if (dat[t] > mx)                   // find max
-        {
-            mx = dat[t];
-            if (t == mbin)
-                mb = dat[t];
-            nx = (float)t;
-        }
-    }
-    rms = sqrt(rms - mn * mn) + 0.0001;
-    datout[0] = (mx - mn) / rms;
-    datout[1] = nx;
-    datout[3] = mn;
-    datout[4] = rms;
-    datout[5] = mx;
-    datout[6] = (mb - mn) / rms;
-    for (t = 0; t < n; t++) {
-        outdat[t] = (dat[t] - mn) / rms;
-    }
-} // end of noise snr*/
-
 // Pulse peak to rms noise ratio
-void psnr(int bins, double * restrict dat, int mbin, psnrReturn * restrict datout, float pulw, double * restrict outdat){
+void psnr(int bins, double *restrict dat, int mbin, psnrReturn *restrict datout, float pulw,
+          double *restrict outdat) {
     int t, n1, n2;
     float mn = 0, rms = 0, mnr = 0, rmsr = 0, mx = 0, nx = 0, mb = 0;
     memset(datout, 0, sizeof(psnrReturn));
@@ -64,8 +37,8 @@ void psnr(int bins, double * restrict dat, int mbin, psnrReturn * restrict datou
     } else {
         datout->std_snr = (mx - mn) / rms;
     }
-    datout ->nx = nx;
-    datout -> mn = mn;
+    datout->nx = nx;
+    datout->mn = mn;
     datout->rms = rms;
     datout->mx = mx;
     datout->unknown_var = (mb - mn) / rms;

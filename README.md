@@ -5,7 +5,7 @@ A GUI front-end for pulsar_det_an - Peter East's software alternative to PRESTO.
 Developed in 2026 by:
 
 Peter East          - pulsar detection software \
-Martin Ante Rogošić - parsing script and compiling \
+Martin Ante Rogošić - parsing script and performance considerations \
 Marko Radolović     - GUI
 
 
@@ -164,6 +164,7 @@ pip install -r requirements.txt
 Arch Linux:
 
 - install packages from requirements.txt by hand. Beware of (possible) different package names with Pacman.
+    alternativly consider using a pip virtual environment
 
 
 Absolute minimum possible requirements:
