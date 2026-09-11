@@ -166,9 +166,29 @@ int main(int argc, char *argv[]) {
 
     // Read attenuated frequency channels input data file
     int mf = 0, couf = 0;
-    int blaf[256];
+    int blaf[MAX_BLANK];
     files[FPT_BLNKF] = fopen("Blankf.txt", "r");
-    while (fscanf(files[FPT_BLNKF], "%d", &mf) != EOF) {
+    if (files[FPT_BLNKF] == NULL) {
+        fprintf(stderr, "Can't reopen Blankf.txt: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    /* "== 1" rather than "!= EOF": on a non-numeric token fscanf returns 0
+       without consuming it, so the old loop spun forever writing past blaf. */
+    while (fscanf(files[FPT_BLNKF], "%d", &mf) == 1) {
+        if (couf >= MAX_BLANK) {
+            fprintf(stderr, "Blankf.txt contains more than %d entries.\n", MAX_BLANK);
+            exit(EXIT_FAILURE);
+        }
+        /* These values are used directly as an array index at the attenuation
+           step, so an out-of-range entry was an out-of-bounds access. With
+           N channels the valid range is 0..N-1, which is easy to get wrong
+           by one when hand-editing the file. */
+        if (mf < 0 || mf >= N) {
+            fprintf(stderr,
+                    "Blankf.txt: channel %d is out of range. Valid channels are 0..%d.\n",
+                    mf, N - 1);
+            exit(EXIT_FAILURE);
+        }
         blaf[couf] = mf;
         couf += 1;
     }
@@ -180,9 +200,23 @@ int main(int argc, char *argv[]) {
 
     // Read attenuated sections input data file
     files[FPT_BLNKS] = fopen("Blanks.txt", "r");
+    if (files[FPT_BLNKS] == NULL) {
+        fprintf(stderr, "Can't reopen Blanks.txt: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
     int cous = 0, ms = 0;
-    int blas[256];
-    while (fscanf(files[FPT_BLNKS], "%d", &ms) != EOF) {
+    int blas[MAX_BLANK];
+    while (fscanf(files[FPT_BLNKS], "%d", &ms) == 1) {
+        if (cous >= MAX_BLANK) {
+            fprintf(stderr, "Blanks.txt contains more than %d entries.\n", MAX_BLANK);
+            exit(EXIT_FAILURE);
+        }
+        if (ms < 0 || ms >= M) {
+            fprintf(stderr,
+                    "Blanks.txt: section %d is out of range. Valid sections are 0..%d.\n",
+                    ms, M - 1);
+            exit(EXIT_FAILURE);
+        }
         blas[cous] = ms;
         cous += 1;
     }
