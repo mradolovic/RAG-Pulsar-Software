@@ -16,6 +16,8 @@ Command format:- rtlchannel4bin <rtlfile.bin> <outfile.bin> <clock rate (MHz) <d
 #include <stdlib.h>
 #include <string.h>
 
+#include "../includes/numerics/is_pow_of_2.h"
+
 #define SWAP(a, b)                                                                                 \
     tempr = (a);                                                                                   \
     (a) = (b);                                                                                     \
@@ -28,6 +30,12 @@ float dsr, RF, DCF, df, DSC;
 int ftpts, DM, fn, ddt, bn, cn;
 long long int an, DSR;
 float clck;
+/* four() is called as four(dats - 1, ftpts, -1), which addresses
+   dats[0 .. 2*ftpts - 1], so dats[16384] bounds ftpts at 8192. datr and
+   darray are indexed [0, ftpts) and are no tighter. Change this constant
+   if you change the array dimensions. */
+#define MAX_FTPTS 8192
+
 double dats[16384], datr[16384];
 float darray[16384];
 unsigned char uchi, uchq;
@@ -45,19 +53,34 @@ int main(int argc, char *argv[]) {
 
     /*check command line arguments*/
     if (argc != 6) {
-        printf("Format: rtlchannel4bin.exe <infile> <outbin> <clock rate (MHz) <downsample clock "
-               "rate (kHz))><No: fft points> \n");
-        exit(0);
+        fprintf(stderr,
+                "Format: rtlchannel4bin <infile> <outbin> <clock rate (MHz)> <downsample clock "
+                "rate (kHz)> <No: fft points>\n");
+        return EXIT_FAILURE;
     }
 
     if ((fptr = fopen(argv[1], "rb")) == NULL) {
-        printf("Can't open file %s. ", argv[1]);
-        exit(0);
+        fprintf(stderr, "Can't open input file %s\n", argv[1]);
+        return EXIT_FAILURE;
     }
 
     DCF = atof(argv[3]);                     // data clock frequency (MHz)
     DSC = atof(argv[4]);                     // downsample clock frequency (kHz)
     ftpts = atoi(argv[5]);                   // FFT points
+
+    /* ftpts sizes every FFT buffer and divides into dsr below. A value that is
+       not a power of two silently produces garbage, because the radix-2
+       transform requires one; a value above MAX_FTPTS overruns dats[]. */
+    if (ftpts < 1 || ftpts > MAX_FTPTS || !is_pow_of_2(ftpts)) {
+        fprintf(stderr, "Number of FFT points must be a power of two in 1..%d (got %d)\n",
+                MAX_FTPTS, ftpts);
+        return EXIT_FAILURE;
+    }
+    if (DCF <= 0.0f || DSC <= 0.0f) {
+        fprintf(stderr, "Clock rate and downsample rate must both be > 0 (got %g MHz, %g kHz)\n",
+                (double)DCF, (double)DSC);
+        return EXIT_FAILURE;
+    }
     dsr = (DCF * 1000 / DSC / (float)ftpts); // ratio of clock to video number of data points
                                              // averaged - or downsampling ratio
     clck = 1 / DCF;                          // data clock interval
@@ -68,7 +91,9 @@ int main(int argc, char *argv[]) {
     printf("Downsample ratio=%1.2f\n", dsr);
 
     /*find length of input file*/
-    fseeko(fptr, SEEK_SET, SEEK_END);
+    /* Was fseeko(fptr, SEEK_SET, SEEK_END): the offset and whence arguments
+       were swapped, and it worked only because SEEK_SET happens to be 0. */
+    fseeko(fptr, 0, SEEK_END);
     file_end = (long long int)(ftello(fptr));
 
     printf("No. Bytes = %lld\n", (long long)file_end);
@@ -77,7 +102,16 @@ int main(int argc, char *argv[]) {
     fclose(fptr);
 
     fptr = fopen(argv[1], "rb");
+    if (fptr == NULL) {
+        fprintf(stderr, "Can't reopen input file %s\n", argv[1]);
+        return EXIT_FAILURE;
+    }
     fptobin = fopen(argv[2], "wb");
+    if (fptobin == NULL) {
+        fprintf(stderr, "Can't create output file %s\n", argv[2]);
+        fclose(fptr);
+        return EXIT_FAILURE;
+    }
 
     /*read input file,decode I and Q, determine power. Sum powers in clock rate/video band blocks.
      At end of input file, output text file with averaged data*/
@@ -112,7 +146,7 @@ int main(int argc, char *argv[]) {
     printf("No. O/P samples = %lld\n", (count));
     printf("\n Infile = %s   Outfilebin = %s\n", argv[1], argv[2]);
 
-    exit(0);
+    return EXIT_SUCCESS;
 }
 
 /*output data to file*/
@@ -129,7 +163,6 @@ void out_dat(void) {
 
 void ftorg_dat(void) {
     long int tt;
-    float opp;
 
     for (tt = 0; tt < ftpts; tt++) {
         if (tt < (ftpts / 2)) {
