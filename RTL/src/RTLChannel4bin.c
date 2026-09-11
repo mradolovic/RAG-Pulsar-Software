@@ -115,7 +115,24 @@ int main(int argc, char *argv[]) {
     {
         for (bn = 0; bn < dsr; bn++) {
             for (fn = 0; fn < 2 * ftpts; fn++) { // get sdr binfile data for FFT
-                uchi = getc(fptr);
+                /* getc returns EOF, not a sample, when the read runs off the end.
+                   Assigned straight into an unsigned char that became 255 - a
+                   full-scale sample - and was transformed and written as though
+                   it were data. Refuse to fabricate signal instead. */
+                const int ci = getc(fptr);
+                if (ci == EOF) {
+                    fprintf(stderr,
+                            "Unexpected end of input after %lld output samples.\n"
+                            "The downsample ratio %g is not a whole number, so each block\n"
+                            "consumes more bytes than the loop bound accounts for and the\n"
+                            "read overruns the file. Choose a clock rate, downsample rate\n"
+                            "and FFT size whose ratio is a whole number.\n",
+                            count, (double)dsr);
+                    fclose(fptr);
+                    fclose(fptobin);
+                    return EXIT_FAILURE;
+                }
+                uchi = (unsigned char)ci;
                 dats[fn] = (float)uchi + 0.0;
                 dats[fn] = (dats[fn] - 128) / 128.0;
             }
