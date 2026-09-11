@@ -18,12 +18,14 @@ for MathCad,Excel and/or Python analysis.
 // gcc pulsar_det_an.c -o pulsardetan -lm -D_FILE_OFFSET_BITS=64
 //./pulsardetan rag_obsm.bin 16 1 714.47415 128 1024 6.5 -26.7 -1.3 6 1 2.4 422 50 0 17
 
+#include <errno.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "../includes/analysis_limits.h"
 #include "../includes/io/files.h"
 
 #include "../includes/numerics/DMSch.h"
@@ -52,28 +54,32 @@ int main(int argc, char *argv[]) {
 
     /*check command line arguments*/
     if (argc != 17) {
-        printf("Format: pulsar_det_an <data file> <N-point FFT> <data clock (ms))> <pulsar period "
-               "(ms)> <No: sections><No. bins><pulse width><DM><ppm><spike threshold><ppm range "
-               "factor><RF band (MHz)><RF Centre (MHz)><roll average No.><start section><end "
-               "section>\n");
-        exit(0);
+        fprintf(stderr,
+                "Format: pulsar_det_an <data file> <N-point FFT> <data clock (ms))> <pulsar period "
+                "(ms)> <No: sections><No. bins><pulse width><DM><ppm><spike threshold><ppm range "
+                "factor><RF band (MHz)><RF Centre (MHz)><roll average No.><start section><end "
+                "section>\n");
+        exit(EXIT_FAILURE);
     }
 
     if ((fptr = fopen(argv[1], "r")) == NULL) {
-        printf("Can't open file %s. \n", argv[1]);
-        exit(0);
+        fprintf(stderr, "Can't open file %s: %s\n", argv[1], strerror(errno));
+        exit(EXIT_FAILURE);
     }
 
     if ((files[FPT_BLNKF] = fopen("Blankf.txt", "r")) == NULL) {
-        printf("No Band Attenuation file %s. \n", "Blankf.txt");
-        exit(0);
+        fprintf(stderr, "No Band Attenuation file %s in the working directory.\n", "Blankf.txt");
+        exit(EXIT_FAILURE);
     }
     fclose(files[FPT_BLNKF]);
 
     if ((files[FPT_BLNKS] = fopen("Blanks.txt", "r")) == NULL) {
-        printf("No Section Attenuation file %s. \n", "Blanks.txt");
-        exit(0);
+        fprintf(stderr, "No Section Attenuation file %s in the working directory.\n", "Blanks.txt");
+        exit(EXIT_FAILURE);
     }
+    /* Closed here; reopened below for the actual read. Previously this handle
+       was overwritten without being closed, leaking one FILE per run. */
+    fclose(files[FPT_BLNKS]);
 
     printf("Pulsar Data\n");
     printf("\nInput Data File = %s\n", argv[1]);
@@ -97,19 +103,65 @@ int main(int argc, char *argv[]) {
 
     const int PTS = M * bins;
     const double inverse_N = 1.0 / (double)N;
-    // some error correction
-    if (N > 100) {
-        printf("No: Bands < 101 \n");
-        exit(0);
+    /* Parameter validation.
+     *
+     * These bounds are the ones the fixed-size working arrays actually impose
+     * (see analysis_limits.h). The previous checks tested different quantities:
+     * N was compared against 100 although every per-channel array is
+     * [MAX_CHAN], bins was only tested for being a power of two although the
+     * fold buffers are [MAX_BINS], and the product checked was M*N although
+     * nothing in the program is sized by M*N. Exceeding any real limit
+     * corrupted a neighbouring array instead of reporting an error, which
+     * produced plausible but wrong numbers rather than a crash.
+     *
+     * MAX_CHAN and MAX_BINS are current implementation limits, not physical
+     * ones. Raising them is a separate change; until then the program refuses
+     * the run rather than silently mis-computing it.
+     */
+    if (N < 1 || N > MAX_CHAN) {
+        fprintf(stderr, "Number of FFT channels must be 1..%d (got %d).\n", MAX_CHAN, N);
+        exit(EXIT_FAILURE);
     }
-
-    if (is_pow_of_2(M) != 1 || is_pow_of_2(bins) != 1 || (M * N) > 262144) {
-        printf("No: Sections and No of bins should be a power of 2 and their product < 262145\n");
-        exit(0);
+    if (is_pow_of_2(M) != 1 || is_pow_of_2(bins) != 1) {
+        fprintf(stderr,
+                "Number of sections (%d) and number of fold bins (%d) must both be powers of 2.\n",
+                M, bins);
+        exit(EXIT_FAILURE);
     }
-    if (stp > M) {
-        printf("Section range out of limit");
-        exit(0);
+    if (bins > MAX_BINS) {
+        fprintf(stderr, "Number of fold bins must be <= %d (got %d).\n", MAX_BINS, bins);
+        exit(EXIT_FAILURE);
+    }
+    if ((long int)M * (long int)bins > MAX_PTS) {
+        fprintf(stderr, "sections * bins must be <= %d (got %ld).\n", MAX_PTS,
+                (long int)M * (long int)bins);
+        exit(EXIT_FAILURE);
+    }
+    if (strt < 0 || stp < strt || stp > M) {
+        fprintf(stderr,
+                "Section range %ld..%ld is invalid: need 0 <= start <= end <= %d.\n", strt, stp, M);
+        exit(EXIT_FAILURE);
+    }
+    if (rolav < 1 || rolav > M) {
+        fprintf(stderr,
+                "Rolling average number must be 1..%d (got %d); outside that range no rolling "
+                "average is ever computed and profile.txt would contain uninitialised values.\n",
+                M, rolav);
+        exit(EXIT_FAILURE);
+    }
+    /* Divisors. pulw reaching conv() as zero gives period/pulw = inf, and the
+       subsequent (int) cast of an infinity is undefined behaviour. */
+    if (!(clck > 0.0) || !(period > 0.0) || !(pulw > 0.0f)) {
+        fprintf(stderr, "Data clock, pulsar period and pulse width must all be greater than 0.\n");
+        exit(EXIT_FAILURE);
+    }
+    if (!(f0 > 0.0) || !(rfband > 0.0)) {
+        fprintf(stderr, "RF centre frequency and RF bandwidth must both be greater than 0.\n");
+        exit(EXIT_FAILURE);
+    }
+    if (nno1 == 0.0f) {
+        fprintf(stderr, "Period range search factor must not be zero.\n");
+        exit(EXIT_FAILURE);
     }
 
     // Read attenuated frequency channels input data file
