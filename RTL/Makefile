@@ -93,7 +93,7 @@ $(BIN_DIR)/RAFFT22Lg$(EXT): $(SRC_DIR)/RAFFT22Lg.c
 $(BIN_DIR)/rapulsar2con$(EXT): $(SRC_DIR)/rapulsar2con.c
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
-$(BIN_DIR)/RTLChannel4bin$(EXT): $(SRC_DIR)/RTLChannel4bin.c $(BIN_DIR)/is_pow_of_2.o
+$(BIN_DIR)/RTLChannel4bin$(EXT): $(SRC_DIR)/RTLChannel4bin.c $(BIN_DIR)/is_pow_of_2.o $(BIN_DIR)/four.o
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 ####################################################################################################
 ## Finally we link the o files for the relevant targets (right now only pulsar_det_an_v4)

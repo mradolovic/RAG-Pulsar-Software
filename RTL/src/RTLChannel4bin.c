@@ -16,13 +16,9 @@ Command format:- rtlchannel4bin <rtlfile.bin> <outfile.bin> <clock rate (MHz) <d
 #include <stdlib.h>
 #include <string.h>
 
+#include "../includes/numerics/four.h"
 #include "../includes/numerics/is_pow_of_2.h"
 
-#define SWAP(a, b)                                                                                 \
-    tempr = (a);                                                                                   \
-    (a) = (b);                                                                                     \
-    (b) = tempr
-#define PI (6.28318530717959 / 2.0)
 
 long long int count = 0;
 
@@ -30,7 +26,7 @@ float dsr, RF, DCF, df, DSC;
 int ftpts, DM, fn, ddt, bn, cn;
 long long int an, DSR;
 float clck;
-/* four() is called as four(dats - 1, ftpts, -1), which addresses
+/* four() is called as four(dats, ftpts, -1), which addresses
    dats[0 .. 2*ftpts - 1], so dats[16384] bounds ftpts at 8192. datr and
    darray are indexed [0, ftpts) and are no tighter. Change this constant
    if you change the array dimensions. */
@@ -47,7 +43,6 @@ FILE *fptobin;
 
 void out_dat(void);
 void ftorg_dat(void);
-void four(double[], int, int);
 
 int main(int argc, char *argv[]) {
 
@@ -125,7 +120,7 @@ int main(int argc, char *argv[]) {
                 dats[fn] = (dats[fn] - 128) / 128.0;
             }
             /*take fourier transform*/
-            four(dats - 1, ftpts, -1);
+            four(dats, ftpts, -1);
             /*reorganise spectrum positive/negative data*/
             ftorg_dat();
             // summ fft outputs and place in array
@@ -171,64 +166,6 @@ void ftorg_dat(void) {
         } else {
             datr[tt - ftpts / 2] =
                 dats[2 * tt] * dats[2 * tt] + dats[2 * tt + 1] * dats[2 * tt + 1];
-        }
-    }
-}
-
-/*fast fourier transform routine*/
-void four(double data[], int nn, int isign)
-/* float data[];
- int nn,isign;*/
-{
-    long int n, mmax, m, j, istep, i, a;
-    double wtemp, wr, wpr, wpi, wi, theta;
-    double tempr, tempi;
-    n = nn << 1;
-    j = 1;
-    for (i = 1; i < n; i += 2) {
-        if (j > i) {
-            SWAP(data[j], data[i]);
-            SWAP(data[j + 1], data[i + 1]);
-        }
-        m = n >> 1;
-        while (m >= 2 && j > m) {
-            j -= m;
-            m >>= 1;
-        }
-        j += m;
-    }
-    mmax = 2;
-
-    while (n > mmax) {
-        istep = 2 * mmax;
-        theta = 6.28318530717959 / (isign * mmax);
-        wtemp = sin(0.5 * theta);
-        wpr = -2.0 * wtemp * wtemp;
-        wpi = sin(theta);
-        wr = 1.0;
-        wi = 0.0;
-        for (m = 1; m < mmax; m += 2) {
-            for (i = m; i <= n; i += istep) {
-                j = i + mmax;
-                tempr = wr * data[j] - wi * data[j + 1];
-                tempi = wr * data[j + 1] + wi * data[j];
-                data[j] = data[i] - tempr;
-                data[j + 1] = data[i + 1] - tempi;
-                data[i] += tempr;
-
-                data[i + 1] += tempi;
-                if (j < 0)
-                    j = 0;
-            }
-            wr = (wtemp = wr) * wpr - wi * wpi + wr;
-            wi = wi * wpr + wtemp * wpi + wi;
-        }
-        mmax = istep;
-        /* printf("%d    %d    %d    %d    %d\n",i,n,m,pts,istep);*/
-    }
-    if (isign == 1) {
-        for (a = 0; a < 2 * nn; a++) {
-            data[a] = data[a] / nn;
         }
     }
 }
