@@ -101,9 +101,31 @@ $(BIN_DIR)/RTLChannel4bin$(EXT): $(SRC_DIR)/RTLChannel4bin.c
 $(BIN_DIR)/pulsar_det_an_v4$(EXT) : $(BIN_DIR)/pulsar_det_an_v4.o $(NUMERICS) $(IO)
 	$(CC) $^ -o $@ $(LDFLAGS)
 ####################################################################################################
-.PHONY: all clean
+.PHONY: all clean asan
 
 all: $(BIN_DIR) $(NUMERICS) $(IO) $(TARGETS)
+
+####################################################################################################
+## Sanitizer build.
+##
+## Use this whenever the analysis code changes, and before trying an untested
+## parameter combination:
+##
+##     make clean && make asan
+##
+## Then run the binary as usual. AddressSanitizer aborts with a stack trace on
+## any out-of-bounds access, and UndefinedBehaviorSanitizer reports undefined
+## operations such as out-of-range casts. Both are silent when nothing is wrong,
+## so a clean run means a clean run. Expect roughly 2-3x slower execution, so
+## test with a short observation rather than a full one.
+##
+## Note: -march=native is deliberately omitted here. It is also worth knowing
+## that the normal build uses it, which means RTL/bin binaries are tied to the
+## machine that compiled them and must not be copied between machines.
+asan: CFLAGS  = -O1 -g3 -D_FILE_OFFSET_BITS=64 -Wall -Wextra -Wpedantic \
+                -fsanitize=address,undefined -fno-omit-frame-pointer
+asan: LDFLAGS = -lm -fsanitize=address,undefined
+asan: all
 
 $(BIN_DIR):
 	$(MKDIR)
