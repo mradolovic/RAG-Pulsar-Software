@@ -379,9 +379,44 @@ int main(int argc, char *argv[]) {
     // This is a very slow operation that needs to be speed up, specifically the file loading
     long int cnt = 0;
     double *comprc = calloc(262144, sizeof(double));
-    const float *buffer = (float *)malloc(nmax * M * N * sizeof(float));
-    fread((void *)buffer, sizeof(float), nmax * M * N, fptr);
-    fwrite(buffer, sizeof(float), nmax * M * N, files[FPT_CUT]);
+    if (comprc == NULL) {
+        fprintf(stderr, "Out of memory allocating the bin counter.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    /* The whole selected section range is read into memory in one block. For a
+       long observation that is several gigabytes, so the allocation genuinely
+       can fail; dereferencing the result without checking turned a predictable
+       out-of-memory condition into a segfault partway through the run.
+
+       Checking the fread matters more. If the input file is shorter than the
+       requested section range - which happens whenever the end section is set
+       optimistically - the tail of the buffer is uninitialised memory, and the
+       fold loop below sums it into comprs as though it were data. The run then
+       completes and prints a plausible SNR computed partly from garbage. */
+    const size_t nsamp = (size_t)nmax * (size_t)M * (size_t)N;
+    float *buffer = malloc(nsamp * sizeof(*buffer));
+    if (buffer == NULL) {
+        fprintf(stderr,
+                "Out of memory: the selected section range needs %.1f GB in one block. "
+                "Narrow the start/end section range.\n",
+                (double)(nsamp * sizeof(*buffer)) / 1073741824.0);
+        exit(EXIT_FAILURE);
+    }
+    const size_t got = fread(buffer, sizeof(*buffer), nsamp, fptr);
+    if (got != nsamp) {
+        fprintf(stderr,
+                "Short read: expected %zu samples, got %zu. The input file is smaller than "
+                "the requested section range - reduce the end section.\n",
+                nsamp, got);
+        free(buffer);
+        exit(EXIT_FAILURE);
+    }
+    if (fwrite(buffer, sizeof(*buffer), nsamp, files[FPT_CUT]) != nsamp) {
+        fprintf(stderr, "Failed to write cutdat.bin (disk full?): %s\n", strerror(errno));
+        free(buffer);
+        exit(EXIT_FAILURE);
+    }
     for (long int aux = 0; aux < (nmax * M); aux += 1) { // nmax equals the number of data sets
 
         // the current running theory is that the channel is divided into M baskets
@@ -406,7 +441,7 @@ int main(int argc, char *argv[]) {
         comprc[mval] = comprc[mval] + 1; // count bin entries
         cnt = cnt + 1;
     }
-    free((void *)buffer);
+    free(buffer);
 
     printf("\n Count= %ld\n", cnt);
     printf("New Compression Ratio = %f \n", ratio);
@@ -1044,7 +1079,11 @@ int main(int argc, char *argv[]) {
     // Build secavsnr.txt - Rolling Window/Average SNR
     int nxx = 0;
     float max = 0, pkmax = 0;
-    double bestprof[4096];
+    /* Zero-initialised: the assignment below is guarded by
+       'datout.std_snr > max' at mp == rolav, which never fires if every SNR in
+       that window is non-positive. profile.txt then printed uninitialised
+       stack in its third column. */
+    double bestprof[MAX_BINS] = {0};
     int span = 0, centre = 0;
 
     for (int mp = 1; mp < M + 1; mp += 1) {

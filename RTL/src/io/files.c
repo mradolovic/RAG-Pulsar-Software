@@ -1,7 +1,16 @@
 #include "../../includes/io/files.h"
 
-FILE **open_files() {
-    FILE **result = (FILE **)malloc(NUM_OF_FILES * sizeof(FILE *));
+#include <errno.h>
+#include <string.h>
+
+FILE **open_files(void) {
+    /* calloc rather than malloc: FPT_BLNKF and FPT_BLNKS are skipped by the
+       loop below, so their slots were left holding uninitialised heap. */
+    FILE **result = (FILE **)calloc(NUM_OF_FILES, sizeof(FILE *));
+    if (result == NULL) {
+        fprintf(stderr, "Out of memory allocating the output file table.\n");
+        exit(EXIT_FAILURE);
+    }
 
     for (int i = 0; i < NUM_OF_FILES; i++) {
         char *str = NULL, *cmd = "w";
@@ -110,16 +119,29 @@ FILE **open_files() {
             str = "data.txt";
             break;
         default:
-            printf("Error\n");
+            fprintf(stderr, "Internal error: no filename defined for output slot %d\n", i);
+            exit(EXIT_FAILURE);
         }
         result[i] = fopen(str, cmd);
+        /* Not one of these 32 opens was checked. If the working directory is
+           not writable, or the disk is full, or the open-file limit is hit,
+           the first fprintf to a NULL handle segfaulted - after the program
+           had already printed its whole banner, so it looked like a crash
+           deep inside the analysis rather than a permissions problem. */
+        if (result[i] == NULL) {
+            fprintf(stderr, "Cannot create output file '%s' in the working directory: %s\n", str,
+                    strerror(errno));
+            exit(EXIT_FAILURE);
+        }
     }
     return result;
 }
 
 void close_files(FILE **files) {
     for (int i = 0; i < NUM_OF_FILES; i++) {
-        if (i != FPT_BLNKF && i != FPT_BLNKS) {
+        /* NULL check as well as the index check: fclose(NULL) is undefined,
+           and would previously have compounded whatever went wrong first. */
+        if (i != FPT_BLNKF && i != FPT_BLNKS && files[i] != NULL) {
             fclose(files[i]);
         }
     }

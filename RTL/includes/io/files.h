@@ -43,6 +43,6 @@ typedef enum OUTPUT_FILES {
     FPT_DAT
 } OUTPUT_FILES;
 
-FILE **open_files();
+FILE **open_files(void);
 void close_files(FILE **files);
 #endif
