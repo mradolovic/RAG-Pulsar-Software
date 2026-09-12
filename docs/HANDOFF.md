@@ -19,9 +19,37 @@ sets to `results/pulsar_det_an_results/`.
 
 ## Operating context
 
-- **Observation files are over 10 GB.** This matters more than anything else below.
+- **The raw captures are tens of GB.** `data/raw data/` holds 29-59 GB files. These
+  are the input to **`RTLChannel4bin`**, not to `pulsar_det_an` - see the size table
+  below, which is the single most important thing to get right before optimising
+  anything for file size.
 - **Typical parameters:** 16 channels, 128 sections, 1024 fold bins, 1 ms clock.
   Target is usually B0329+54.
+- **The two stages see very different volumes.** `RTLChannel4bin` reads raw 8-bit
+  I/Q and writes 4-byte floats; the size ratio is `2/dsr` where
+  `dsr = clock / downsample / ftpts`. At the observatory's settings `dsr = 128`, so
+  the channelised file is **1/64 the size of the raw capture**:
+
+  | stage | reads | 240 min of observation |
+  |---|---|---|
+  | `RTLChannel4bin` | raw 8-bit I/Q | **~59 GB** |
+  | `pulsar_det_an` | channelised floats | **~920 MB** |
+
+  Verified: `20260820_2357Z_240min.bin` is 58,979,778,560 B and its channelised
+  output is 921,559,040 B, exactly `floor(raw/4096) * 16 * 4`.
+
+- **The parameters actually in use**, recovered from `results/pulsar_det_an_results/header.txt`
+  and from the raw/channelised size ratio. Keep these; they are what the baselines
+  below were captured with.
+
+  ```
+  RTLChannel4bin:  <raw.bin> <out.bin> 2.048 1 16
+  pulsar_det_an:   <chan.bin> 16 1 714.463240 128 1024 6.5 26.7 -1.3 6 1 2 409 50 0 127
+  ```
+
+  `pulsar_det_an` applies the -1.3 ppm adjustment before writing its header, so
+  `header.txt` reports a period 0.000929 ms lower than the one passed in. That is
+  expected, not drift.
 - **There is a desire to run above 32 channels and above 4096 bins.** This has not
   been done yet. It is currently blocked, deliberately — see "Limits" below.
 - **Platform:** Linux first, Windows and macOS wanted eventually.
@@ -53,8 +81,21 @@ layout changes, build changes, anything in the Python layer. Prove it:
 
 ```bash
 cd RTL && make clean && make all
-scripts/compare_outputs.sh <baseline-dir>      # must print PASS
+scripts/compare_outputs.sh <baseline-dir>      # pulsar_det_an - must print PASS
+scripts/compare_rtlchan.sh  <baseline-dir>     # RTLChannel4bin - must print PASS
 ```
+
+**Baselines already captured** (outside the repo, so `make clean` and a `results/`
+wipe cannot reach them):
+
+| baseline | program | input |
+|---|---|---|
+| `~/pulsar_baselines/item1_streaming` | `pulsar_det_an` | `data/20260822_0250Z_240min_channelised.bin`, full range |
+| `~/pulsar_baselines/rtlchan/base` | `RTLChannel4bin` | 400 MiB slice of `data/raw data/20260819_0217_120min.bin` |
+
+The `RTLChannel4bin` slice is deliberately **not** a whole number of 4096-byte
+blocks, so the partial tail is exercised. A prefix of a raw capture is itself a
+valid raw capture, which is what makes slicing safe.
 
 **Behaviour-changing** — alters the numbers in the output files.
 One commit each, with the commit message stating what changes and why. These need
@@ -111,20 +152,58 @@ Four commits, all verified byte-identical against a baseline (37 of 37 output fi
 `pulsar_det_an_v4.c` and `io/files.c` now build warning-free under
 `-Wall -Wextra -Wpedantic`, and a full ASan/UBSan run is silent.
 
+### Second session - `RTLChannel4bin` (outstanding item 3)
+
+Four more commits. The first three are behaviour-preserving and verified
+byte-identical; the fourth is behaviour-changing and **still needs a validation
+run before it is merged**.
+
+5. **`tooling: add an output baseline harness for RTLChannel4bin`** - the existing
+   pair hardcodes `pulsar_det_an_v4.out`, so there was no way to prove a change to
+   the channelising stage. `compare_rtlchan.sh` reports how far the float samples
+   moved, not just that bytes changed.
+6. **`validate: bound and range-check RTLChannel4bin's parameters`** - `ftpts` was
+   unchecked; `16384` overran `dats[]` and non-powers-of-two were accepted and
+   silently produced garbage. Now bounded by `MAX_FTPTS` (8192) using the existing
+   `is_pow_of_2()`. Also the swapped `fseeko` arguments, the unchecked reopen and
+   output `fopen`, `exit(0)` on every failure path, and an unused variable.
+7. **`refactor: link RTLChannel4bin against the fixed four() in numerics/`** - nine
+   of that file's ten warnings came from `four(dats - 1, ...)`. Verified beyond the
+   standard comparison: the pre-change binary was rebuilt and compared across
+   `ftpts` = 4, 16, 64, 256, 1024, 2048 (2 through 11 butterfly stages), all
+   byte-identical. `SWAP` and `PI` went with the local copy.
+8. **`fix: stop RTLChannel4bin fabricating samples past end of input`** -
+   **BEHAVIOUR-CHANGING, awaiting validation.** See item 5 below for exactly what
+   changes.
+
+`RTLChannel4bin.c` now builds warning-free and runs silent under ASan/UBSan.
+The tree is down from 20 warnings to 10, all in `RAFFT22Lg.c` and `rapulsar2con.c`.
+
 ---
 
 ## Outstanding work, in priority order
 
-### 1. Stream the bulk data load (behaviour-preserving)
+### 1. Stream the bulk data load (behaviour-preserving) - RE-SCOPED, LOWER PRIORITY
 
-`pulsar_det_an_v4.c` reads the entire selected section range into one allocation and
-writes a verbatim copy to `cutdat.bin`. With observations over 10 GB this needs
-10 GB of contiguous RAM and 10 GB of disk. The section range has effectively been
-functioning as a workaround for this ceiling.
+**The original justification for this item was wrong and is corrected here.** It read:
+"With observations over 10 GB this needs 10 GB of contiguous RAM and 10 GB of disk."
+That is not what happens. `pulsar_det_an` never sees a 10 GB file - it reads the
+*channelised* output, which at 16 channels / 1 ms is ~920 MB for a 240-minute
+observation. The 10 GB+ files are the *raw* captures, and they go to
+`RTLChannel4bin`, which already streams via `getc` and has no RAM ceiling. For
+`pulsar_det_an`'s buffer to reach 10 GB you would need a 43-hour channelised
+observation.
 
-The fold loop iterates sequentially over `aux`, so it reads naturally in fixed-size
-chunks. Doing so removes the RAM ceiling entirely. Must remain byte-identical —
-floating-point accumulation order in the fold must not change.
+What remains true: `pulsar_det_an_v4.c` reads the entire selected section range into
+one allocation and writes a verbatim copy to `cutdat.bin`. At the observatory's
+settings that is a ~920 MB allocation plus a ~920 MB disk write per run, on a disk
+that has been sitting at 94% full. Worth doing, but it is a cost reduction, not a
+ceiling fix, and it should not be prioritised on the basis of the 10 GB figure.
+
+The fold loop iterates sequentially over `aux` and reads `buffer[aux*N + num]` in
+strictly increasing order, so it chunks naturally and accumulation order is
+preserved exactly. Must remain byte-identical - floating-point accumulation order
+in the fold must not change.
 
 ### 2. GUI: stop blocking the Tk event loop (behaviour-preserving)
 
@@ -136,19 +215,22 @@ the Tk thread via `root.after()`. Only the poller may touch widgets.
 While there: `run_process` never checks `returncode`, so it prints "Done" even on
 failure. That check is only meaningful now that the C side returns `EXIT_FAILURE`.
 
-### 3. `RTLChannel4bin.c` (mixed)
+### 3. `RTLChannel4bin.c` (mixed) - MOSTLY DONE
 
-- `ftpts` is unvalidated. `dats[16384]` needs `2*ftpts`, so the real limit is 8192;
-  `ftpts=16384` overflows. A non-power-of-two value silently produces garbage —
-  `is_pow_of_2()` already exists in `numerics/` and should be used.
-- `four(dats - 1, ...)` — GCC reports `array subscript -1 is outside array bounds`.
-  This is the old copy of the FFT. **The fixed version is `numerics/four.c`**; there
-  are four copies in the tree (`RTLChannel4bin.c`, `RAFFT22Lg.c`, `rapulsar2con.c`,
-  and the fixed one). Link the three against `numerics/four.o` and delete their
-  local copies.
-- `fseeko(fptr, SEEK_SET, SEEK_END)` has its arguments swapped; it works only
-  because `SEEK_SET == 0`.
-- `getc()` return is unchecked, so EOF becomes a 255 sample in the final block.
+Everything originally listed here is done, in commits 6-8 above. What is left:
+
+- **`RAFFT22Lg.c` and `rapulsar2con.c` still carry their own `four()` copies.**
+  These are the tree's remaining 10 warnings. Neither is invoked by the Python
+  pipeline (`lib/funcs.py` builds them, nothing runs them), and neither has an
+  output baseline, so consolidating them needs its own harness and its own
+  separately-verified commit. Do not fold them into an unrelated change.
+- **The non-whole-`dsr` loop bound is treated, not cured.** Commit 8 stops the
+  program rather than letting it fabricate data, but the underlying defect is that
+  `for (bn = 0; bn < dsr; bn++)` compares an `int` against a `float` and so runs
+  `ceil(dsr)` times, while the outer bound divides by the truncated
+  `(long long)(dsr * ftpts * 2)`. Making the block size a single integer used by
+  both loops would cure it, and would let non-whole ratios work rather than be
+  rejected. That is a behaviour change and needs its own commit and validation.
 
 ### 4. Windows 64-bit correctness (behaviour-preserving on Linux)
 
@@ -158,6 +240,20 @@ at 2 GB. `fseeko`/`ftello` do not exist in MinGW (`_fseeki64`/`_ftelli64`). Need
 `int64_t` throughout plus a seek shim. Worth doing before more code accumulates.
 
 ### 5. Behaviour-changing fixes (each needs a validation run)
+
+- **`RTLChannel4bin` no longer fabricates samples past end of input.** ALREADY
+  COMMITTED (commit 8), awaiting your validation run. What changes, precisely:
+  *nothing* when `dsr = clock / downsample / ftpts` is a whole number - measured
+  with an instrumented build, 0 EOF hits over 400 MiB at the observatory's own
+  `2.048 1 16`, where `dsr = 128`, and byte-identical at `2.4 1 16` and across
+  `ftpts` = 4..2048. When `dsr` is *not* whole, the read overruns the file: 11,633,198
+  EOF hits at `2.4 7 16`. Those reads returned `EOF`, which became a 255 sample -
+  full scale - and was transformed and written as though it were signal. This is not
+  "the final partial block" as previously recorded here; it is most of the tail. Such
+  a run now exits `EXIT_FAILURE` with a diagnostic instead of writing a longer file
+  padded with invented signal and reporting success. Refusing the run is the
+  conservative reading; truncating to the last complete block instead is a one-line
+  change.
 
 - **`spectrum()` half-fills its output.** It writes `ftdat2[0 .. PTS/2-1]` but the
   caller reads `[0 .. PTS-1]`. Since `ftdat2` is a global, channels after the first
@@ -206,7 +302,15 @@ at 2 GB. `fseeko`/`ftello` do not exist in MinGW (`_fseeki64`/`_ftelli64`). Need
 
 - **`pulsar_det_an_v4.c` and `RTLChannel4bin.c` use CRLF line endings**; the rest of
   the tree uses LF. Edits must preserve them or the whole file lands in the diff.
-  There is no `.gitattributes`.
+  There is no `.gitattributes`. Two practical consequences:
+  - **Applying patches needs `git am --keep-cr`.** Without it `git am` mangles the
+    CRLF context lines. The tell is the diffstat: a real change to
+    `pulsar_det_an_v4.c` is tens of lines, whereas a mangled apply rewrites all
+    ~1195. Check with
+    `git diff --numstat origin/gui..HEAD -- RTL/src/pulsar_det_an_v4.c`.
+  - **Edit these two files in binary**, not with a line-oriented editor that
+    normalises endings. Verify afterwards with
+    `[ "$(wc -l < f)" = "$(grep -c $'\r$' f)" ]` - every line must be CRLF.
 - **`.bss` is 646 MB** — the fixed global arrays are allocated whether used or not.
   At the normal 16 channels / 128 sections / 1024 bins, only ~179 MB is actually
   needed. When the limits are eventually raised, dynamic allocation makes the common
@@ -218,3 +322,19 @@ at 2 GB. `fseeko`/`ftello` do not exist in MinGW (`_fseeki64`/`_ftelli64`). Need
   matching check in `gui.py`.
 - `pul_plot` reads whatever is in `results/pulsar_det_an_results/`, so a failed run
   followed by a plot looks like a successful run.
+
+---
+
+## Verification status at the end of the second session
+
+| check | result |
+|---|---|
+| `cd RTL && make clean && make all` | exit 0, 10 warnings, all in `RAFFT22Lg.c` / `rapulsar2con.c` |
+| `scripts/compare_outputs.sh ~/pulsar_baselines/item1_streaming` | PASS, 37/37 byte-identical |
+| `scripts/compare_rtlchan.sh ~/pulsar_baselines/rtlchan/base` | PASS, 6,553,600 bytes byte-identical |
+| `make asan` + run of `RTLChannel4bin` | silent |
+| CRLF in `pulsar_det_an_v4.c` / `RTLChannel4bin.c` | 1195/1195 and 188/188 |
+
+The `pulsar_det_an` baseline run is a real detection (max SNR 6.16, best section
+range SNR 42.99), so the comparison is exercising a meaningful code path rather
+than a degenerate one.
