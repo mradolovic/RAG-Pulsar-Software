@@ -1,0 +1,205 @@
+From df74f5e244f835e63cebb2e32754d5a4fe2f8a02 Mon Sep 17 00:00:00 2001
+From: "Claude (review)" <claude@anthropic.com>
+Date: Fri, 11 Sep 2026 12:49:21 +0000
+Subject: [PATCH 4/4] robustness: check every allocation, read and file open
+
+pulsar_det_an_v4.c
+
+  The bulk data load did none of its checks. malloc of the whole
+  selected range (gigabytes for a long observation) was dereferenced
+  without testing for NULL, and the fread return value was discarded -
+  the one warning the existing Makefile flags already emitted.
+
+  The discarded fread is the more dangerous of the two. If the input
+  file is shorter than the requested section range, the tail of the
+  buffer is uninitialised memory which the fold loop sums into comprs
+  as though it were data. The run completes and prints a plausible SNR
+  computed partly from garbage. It is now a clear error naming the
+  shortfall. The cutdat.bin write is checked too, so a full disk is
+  reported rather than producing a truncated copy.
+
+  bestprof is now zero-initialised. It is printed unconditionally into
+  profile.txt column 3, but only assigned inside a branch that never
+  fires if every SNR in the rolling window is non-positive.
+
+io/files.c
+
+  None of the 32 output file opens were checked. A non-writable working
+  directory meant the first fprintf to a NULL handle segfaulted after
+  the banner had printed, which looks like a crash inside the analysis
+  rather than a permissions problem.
+
+  The table is now calloc'd, since the loop skips the two attenuation
+  slots and left them holding uninitialised heap, and close_files skips
+  NULL handles rather than calling fclose on them.
+
+  open_files() is declared (void) so the compiler checks its callers.
+
+pulsar_det_an_v4.c and io/files.c now build warning-free under
+-Wall -Wextra -Wpedantic.
+
+Verified byte-identical: all 37 output files match the baseline.
+---
+ RTL/bin/Blankf.txt         |  1 -
+ RTL/bin/Blanks.txt         |  1 -
+ RTL/includes/io/files.h    |  2 +-
+ RTL/src/io/files.c         | 30 +++++++++++++++++++----
+ RTL/src/pulsar_det_an_v4.c | 49 ++++++++++++++++++++++++++++++++++----
+ 5 files changed, 71 insertions(+), 12 deletions(-)
+
+diff --git a/RTL/bin/Blankf.txt b/RTL/bin/Blankf.txt
+index 00750ed..e69de29 100644
+--- a/RTL/bin/Blankf.txt
++++ b/RTL/bin/Blankf.txt
+@@ -1 +0,0 @@
+-3
+diff --git a/RTL/bin/Blanks.txt b/RTL/bin/Blanks.txt
+index 7ed6ff8..e69de29 100644
+--- a/RTL/bin/Blanks.txt
++++ b/RTL/bin/Blanks.txt
+@@ -1 +0,0 @@
+-5
+diff --git a/RTL/includes/io/files.h b/RTL/includes/io/files.h
+index f9949e6..2e3bb1c 100644
+--- a/RTL/includes/io/files.h
++++ b/RTL/includes/io/files.h
+@@ -43,6 +43,6 @@ typedef enum OUTPUT_FILES {
+     FPT_DAT
+ } OUTPUT_FILES;
+ 
+-FILE **open_files();
++FILE **open_files(void);
+ void close_files(FILE **files);
+ #endif
+diff --git a/RTL/src/io/files.c b/RTL/src/io/files.c
+index fe8452d..34eebf2 100644
+--- a/RTL/src/io/files.c
++++ b/RTL/src/io/files.c
+@@ -1,7 +1,16 @@
+ #include "../../includes/io/files.h"
+ 
+-FILE **open_files() {
+-    FILE **result = (FILE **)malloc(NUM_OF_FILES * sizeof(FILE *));
++#include <errno.h>
++#include <string.h>
++
++FILE **open_files(void) {
++    /* calloc rather than malloc: FPT_BLNKF and FPT_BLNKS are skipped by the
++       loop below, so their slots were left holding uninitialised heap. */
++    FILE **result = (FILE **)calloc(NUM_OF_FILES, sizeof(FILE *));
++    if (result == NULL) {
++        fprintf(stderr, "Out of memory allocating the output file table.\n");
++        exit(EXIT_FAILURE);
++    }
+ 
+     for (int i = 0; i < NUM_OF_FILES; i++) {
+         char *str = NULL, *cmd = "w";
+@@ -110,16 +119,29 @@ FILE **open_files() {
+             str = "data.txt";
+             break;
+         default:
+-            printf("Error\n");
++            fprintf(stderr, "Internal error: no filename defined for output slot %d\n", i);
++            exit(EXIT_FAILURE);
+         }
+         result[i] = fopen(str, cmd);
++        /* Not one of these 32 opens was checked. If the working directory is
++           not writable, or the disk is full, or the open-file limit is hit,
++           the first fprintf to a NULL handle segfaulted - after the program
++           had already printed its whole banner, so it looked like a crash
++           deep inside the analysis rather than a permissions problem. */
++        if (result[i] == NULL) {
++            fprintf(stderr, "Cannot create output file '%s' in the working directory: %s\n", str,
++                    strerror(errno));
++            exit(EXIT_FAILURE);
++        }
+     }
+     return result;
+ }
+ 
+ void close_files(FILE **files) {
+     for (int i = 0; i < NUM_OF_FILES; i++) {
+-        if (i != FPT_BLNKF && i != FPT_BLNKS) {
++        /* NULL check as well as the index check: fclose(NULL) is undefined,
++           and would previously have compounded whatever went wrong first. */
++        if (i != FPT_BLNKF && i != FPT_BLNKS && files[i] != NULL) {
+             fclose(files[i]);
+         }
+     }
+diff --git a/RTL/src/pulsar_det_an_v4.c b/RTL/src/pulsar_det_an_v4.c
+index 90fc5e0..8ac2a96 100644
+--- a/RTL/src/pulsar_det_an_v4.c
++++ b/RTL/src/pulsar_det_an_v4.c
+@@ -379,9 +379,44 @@ int main(int argc, char *argv[]) {
+     // This is a very slow operation that needs to be speed up, specifically the file loading
+     long int cnt = 0;
+     double *comprc = calloc(262144, sizeof(double));
+-    const float *buffer = (float *)malloc(nmax * M * N * sizeof(float));
+-    fread((void *)buffer, sizeof(float), nmax * M * N, fptr);
+-    fwrite(buffer, sizeof(float), nmax * M * N, files[FPT_CUT]);
++    if (comprc == NULL) {
++        fprintf(stderr, "Out of memory allocating the bin counter.\n");
++        exit(EXIT_FAILURE);
++    }
++
++    /* The whole selected section range is read into memory in one block. For a
++       long observation that is several gigabytes, so the allocation genuinely
++       can fail; dereferencing the result without checking turned a predictable
++       out-of-memory condition into a segfault partway through the run.
++
++       Checking the fread matters more. If the input file is shorter than the
++       requested section range - which happens whenever the end section is set
++       optimistically - the tail of the buffer is uninitialised memory, and the
++       fold loop below sums it into comprs as though it were data. The run then
++       completes and prints a plausible SNR computed partly from garbage. */
++    const size_t nsamp = (size_t)nmax * (size_t)M * (size_t)N;
++    float *buffer = malloc(nsamp * sizeof(*buffer));
++    if (buffer == NULL) {
++        fprintf(stderr,
++                "Out of memory: the selected section range needs %.1f GB in one block. "
++                "Narrow the start/end section range.\n",
++                (double)(nsamp * sizeof(*buffer)) / 1073741824.0);
++        exit(EXIT_FAILURE);
++    }
++    const size_t got = fread(buffer, sizeof(*buffer), nsamp, fptr);
++    if (got != nsamp) {
++        fprintf(stderr,
++                "Short read: expected %zu samples, got %zu. The input file is smaller than "
++                "the requested section range - reduce the end section.\n",
++                nsamp, got);
++        free(buffer);
++        exit(EXIT_FAILURE);
++    }
++    if (fwrite(buffer, sizeof(*buffer), nsamp, files[FPT_CUT]) != nsamp) {
++        fprintf(stderr, "Failed to write cutdat.bin (disk full?): %s\n", strerror(errno));
++        free(buffer);
++        exit(EXIT_FAILURE);
++    }
+     for (long int aux = 0; aux < (nmax * M); aux += 1) { // nmax equals the number of data sets
+ 
+         // the current running theory is that the channel is divided into M baskets
+@@ -406,7 +441,7 @@ int main(int argc, char *argv[]) {
+         comprc[mval] = comprc[mval] + 1; // count bin entries
+         cnt = cnt + 1;
+     }
+-    free((void *)buffer);
++    free(buffer);
+ 
+     printf("\n Count= %ld\n", cnt);
+     printf("New Compression Ratio = %f \n", ratio);
+@@ -1044,7 +1079,11 @@ int main(int argc, char *argv[]) {
+     // Build secavsnr.txt - Rolling Window/Average SNR
+     int nxx = 0;
+     float max = 0, pkmax = 0;
+-    double bestprof[4096];
++    /* Zero-initialised: the assignment below is guarded by
++       'datout.std_snr > max' at mp == rolav, which never fires if every SNR in
++       that window is non-positive. profile.txt then printed uninitialised
++       stack in its third column. */
++    double bestprof[MAX_BINS] = {0};
+     int span = 0, centre = 0;
+ 
+     for (int mp = 1; mp < M + 1; mp += 1) {
+-- 
+2.43.0
+

@@ -1,0 +1,265 @@
+From 0657ecd4c3236b699f3a7ddef17c147605c7e071 Mon Sep 17 00:00:00 2001
+From: "Claude (review)" <claude@anthropic.com>
+Date: Fri, 11 Sep 2026 12:47:25 +0000
+Subject: [PATCH 2/4] validate: enforce the limits the fixed-size arrays
+ actually impose
+
+The previous checks tested the wrong quantities:
+
+  - N was rejected only above 100, but every per-channel array is
+    dimensioned [32]. N=64 wrote past the end of compval into rm.
+  - bins was checked for being a power of two but never bounded, while
+    the fold buffers are [4096]. bins=8192 overflowed memset/memcpy.
+  - the product tested was M*N, but nothing is sized by M*N. The
+    quantity that matters, PTS = M*bins, was never checked at all.
+
+All three were reachable with parameters the program advertised as
+valid, and none produced an error: they corrupted a neighbouring array
+and carried on, so the result looked plausible.
+
+Adds analysis_limits.h, which collects each limit next to the list of
+declarations it comes from, so the arrays and the checks cannot drift
+apart again. Also validates the section range, the rolling average
+number (out of range left profile.txt reading uninitialised stack), and
+the divisors clck, period and pulw (pulw=0 made conv() cast an infinity
+to int, which is undefined).
+
+Failures now write to stderr and return EXIT_FAILURE. Previously every
+error path called exit(0), so lib/runners.py's returncode check could
+never fire and the chain continued to pul_plot, which replotted stale
+files from the previous run.
+
+Also closes the Blanks.txt handle opened during the existence check;
+it was overwritten later without being closed, leaking a FILE per run.
+
+Verified byte-identical: all 37 output files match the pre-change
+baseline for a valid run (scripts/compare_outputs.sh).
+---
+ RTL/bin/Blankf.txt             |  1 +
+ RTL/bin/Blanks.txt             |  1 +
+ RTL/includes/analysis_limits.h | 60 +++++++++++++++++++++
+ RTL/src/pulsar_det_an_v4.c     | 96 ++++++++++++++++++++++++++--------
+ 4 files changed, 136 insertions(+), 22 deletions(-)
+ create mode 100644 RTL/includes/analysis_limits.h
+
+diff --git a/RTL/bin/Blankf.txt b/RTL/bin/Blankf.txt
+index e69de29..00750ed 100644
+--- a/RTL/bin/Blankf.txt
++++ b/RTL/bin/Blankf.txt
+@@ -0,0 +1 @@
++3
+diff --git a/RTL/bin/Blanks.txt b/RTL/bin/Blanks.txt
+index e69de29..7ed6ff8 100644
+--- a/RTL/bin/Blanks.txt
++++ b/RTL/bin/Blanks.txt
+@@ -0,0 +1 @@
++5
+diff --git a/RTL/includes/analysis_limits.h b/RTL/includes/analysis_limits.h
+new file mode 100644
+index 0000000..8eb6869
+--- /dev/null
++++ b/RTL/includes/analysis_limits.h
+@@ -0,0 +1,60 @@
++#ifndef __ANALYSIS_LIMITS__
++#define __ANALYSIS_LIMITS__
++
++/*
++ * Limits imposed by the fixed-size working arrays in pulsar_det_an_v4.c.
++ *
++ * These are not physical or scientific limits. They are the dimensions the
++ * arrays happen to be declared with, collected in one place so that the
++ * declarations and the argument checks cannot drift apart again. Every value
++ * below is derived from a declaration; the derivation is given so that anyone
++ * changing an array knows which constant must change with it.
++ *
++ * If you raise one of these, you must also change every array listed against
++ * it. Building with "make asan" and running the new parameters is the cheapest
++ * way to confirm you caught them all.
++ */
++
++/*
++ * Number of FFT frequency channels (argv[2], "N").
++ *
++ * Bounded by the per-channel dimension, which is 32 in all of:
++ *   comprs[.][32]  ave[.][32]  rms[32][.]  av[32][.]  rm[32][.]
++ *   mean[32]  std[32]  compval[32][.]  compvald[.][32]  compvaldd[32][.]
++ *   spect[32][.]  bndcum[32][.]
++ *
++ * Note that outsumt[100][.] is indexed both by channel (num < N) and by period
++ * step (st < 51), so its first dimension must stay >= max(MAX_CHAN, 51).
++ */
++#define MAX_CHAN 32
++
++/*
++ * Number of fold bins (argv[6], "bins").
++ *
++ * Bounded by the fold buffers, which are 4096 in all of:
++ *   dfold[4096]  sumt[4096]  count[4096]  outdat[4096]  pkdat[4096]
++ *   bstdmprf[4096]  bestprof[4096]  ddfold[.][4096]  outsumt[.][4096]
++ *   ave[4096][.]  rms[.][4096]  av[.][4096]  rm[.][4096]  bndcum[.][4096]
++ */
++#define MAX_BINS 4096
++
++/*
++ * Total output points, PTS = M * bins.
++ *
++ * Bounded by the dispersion search matrix ddispbands[.][131072], which is the
++ * tightest of the PTS-indexed arrays. The others are larger:
++ *   compval[.][262144]  compvald[262144][.]  compvaldd[.][262144]
++ *   spect[.][262144]  comprs[262144][.]  allbands[262144] and friends
++ *   targ[1048576] and ftdat2[1048576], which hold 2*PTS doubles and so
++ *   independently require PTS <= 524288
++ */
++#define MAX_PTS 131072
++
++/*
++ * Maximum number of entries read from Blankf.txt and Blanks.txt.
++ *
++ * Bounded by blaf[256] and blas[256].
++ */
++#define MAX_BLANK 256
++
++#endif
+diff --git a/RTL/src/pulsar_det_an_v4.c b/RTL/src/pulsar_det_an_v4.c
+index 9d90da0..940d94d 100644
+--- a/RTL/src/pulsar_det_an_v4.c
++++ b/RTL/src/pulsar_det_an_v4.c
+@@ -18,12 +18,14 @@ for MathCad,Excel and/or Python analysis.
+ // gcc pulsar_det_an.c -o pulsardetan -lm -D_FILE_OFFSET_BITS=64
+ //./pulsardetan rag_obsm.bin 16 1 714.47415 128 1024 6.5 -26.7 -1.3 6 1 2.4 422 50 0 17
+ 
++#include <errno.h>
+ #include <math.h>
+ #include <stddef.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+ 
++#include "../includes/analysis_limits.h"
+ #include "../includes/io/files.h"
+ 
+ #include "../includes/numerics/DMSch.h"
+@@ -52,28 +54,32 @@ int main(int argc, char *argv[]) {
+ 
+     /*check command line arguments*/
+     if (argc != 17) {
+-        printf("Format: pulsar_det_an <data file> <N-point FFT> <data clock (ms))> <pulsar period "
+-               "(ms)> <No: sections><No. bins><pulse width><DM><ppm><spike threshold><ppm range "
+-               "factor><RF band (MHz)><RF Centre (MHz)><roll average No.><start section><end "
+-               "section>\n");
+-        exit(0);
++        fprintf(stderr,
++                "Format: pulsar_det_an <data file> <N-point FFT> <data clock (ms))> <pulsar period "
++                "(ms)> <No: sections><No. bins><pulse width><DM><ppm><spike threshold><ppm range "
++                "factor><RF band (MHz)><RF Centre (MHz)><roll average No.><start section><end "
++                "section>\n");
++        exit(EXIT_FAILURE);
+     }
+ 
+     if ((fptr = fopen(argv[1], "r")) == NULL) {
+-        printf("Can't open file %s. \n", argv[1]);
+-        exit(0);
++        fprintf(stderr, "Can't open file %s: %s\n", argv[1], strerror(errno));
++        exit(EXIT_FAILURE);
+     }
+ 
+     if ((files[FPT_BLNKF] = fopen("Blankf.txt", "r")) == NULL) {
+-        printf("No Band Attenuation file %s. \n", "Blankf.txt");
+-        exit(0);
++        fprintf(stderr, "No Band Attenuation file %s in the working directory.\n", "Blankf.txt");
++        exit(EXIT_FAILURE);
+     }
+     fclose(files[FPT_BLNKF]);
+ 
+     if ((files[FPT_BLNKS] = fopen("Blanks.txt", "r")) == NULL) {
+-        printf("No Section Attenuation file %s. \n", "Blanks.txt");
+-        exit(0);
++        fprintf(stderr, "No Section Attenuation file %s in the working directory.\n", "Blanks.txt");
++        exit(EXIT_FAILURE);
+     }
++    /* Closed here; reopened below for the actual read. Previously this handle
++       was overwritten without being closed, leaking one FILE per run. */
++    fclose(files[FPT_BLNKS]);
+ 
+     printf("Pulsar Data\n");
+     printf("\nInput Data File = %s\n", argv[1]);
+@@ -97,19 +103,65 @@ int main(int argc, char *argv[]) {
+ 
+     const int PTS = M * bins;
+     const double inverse_N = 1.0 / (double)N;
+-    // some error correction
+-    if (N > 100) {
+-        printf("No: Bands < 101 \n");
+-        exit(0);
++    /* Parameter validation.
++     *
++     * These bounds are the ones the fixed-size working arrays actually impose
++     * (see analysis_limits.h). The previous checks tested different quantities:
++     * N was compared against 100 although every per-channel array is
++     * [MAX_CHAN], bins was only tested for being a power of two although the
++     * fold buffers are [MAX_BINS], and the product checked was M*N although
++     * nothing in the program is sized by M*N. Exceeding any real limit
++     * corrupted a neighbouring array instead of reporting an error, which
++     * produced plausible but wrong numbers rather than a crash.
++     *
++     * MAX_CHAN and MAX_BINS are current implementation limits, not physical
++     * ones. Raising them is a separate change; until then the program refuses
++     * the run rather than silently mis-computing it.
++     */
++    if (N < 1 || N > MAX_CHAN) {
++        fprintf(stderr, "Number of FFT channels must be 1..%d (got %d).\n", MAX_CHAN, N);
++        exit(EXIT_FAILURE);
+     }
+-
+-    if (is_pow_of_2(M) != 1 || is_pow_of_2(bins) != 1 || (M * N) > 262144) {
+-        printf("No: Sections and No of bins should be a power of 2 and their product < 262145\n");
+-        exit(0);
++    if (is_pow_of_2(M) != 1 || is_pow_of_2(bins) != 1) {
++        fprintf(stderr,
++                "Number of sections (%d) and number of fold bins (%d) must both be powers of 2.\n",
++                M, bins);
++        exit(EXIT_FAILURE);
++    }
++    if (bins > MAX_BINS) {
++        fprintf(stderr, "Number of fold bins must be <= %d (got %d).\n", MAX_BINS, bins);
++        exit(EXIT_FAILURE);
++    }
++    if ((long int)M * (long int)bins > MAX_PTS) {
++        fprintf(stderr, "sections * bins must be <= %d (got %ld).\n", MAX_PTS,
++                (long int)M * (long int)bins);
++        exit(EXIT_FAILURE);
++    }
++    if (strt < 0 || stp < strt || stp > M) {
++        fprintf(stderr,
++                "Section range %ld..%ld is invalid: need 0 <= start <= end <= %d.\n", strt, stp, M);
++        exit(EXIT_FAILURE);
++    }
++    if (rolav < 1 || rolav > M) {
++        fprintf(stderr,
++                "Rolling average number must be 1..%d (got %d); outside that range no rolling "
++                "average is ever computed and profile.txt would contain uninitialised values.\n",
++                M, rolav);
++        exit(EXIT_FAILURE);
++    }
++    /* Divisors. pulw reaching conv() as zero gives period/pulw = inf, and the
++       subsequent (int) cast of an infinity is undefined behaviour. */
++    if (!(clck > 0.0) || !(period > 0.0) || !(pulw > 0.0f)) {
++        fprintf(stderr, "Data clock, pulsar period and pulse width must all be greater than 0.\n");
++        exit(EXIT_FAILURE);
++    }
++    if (!(f0 > 0.0) || !(rfband > 0.0)) {
++        fprintf(stderr, "RF centre frequency and RF bandwidth must both be greater than 0.\n");
++        exit(EXIT_FAILURE);
+     }
+-    if (stp > M) {
+-        printf("Section range out of limit");
+-        exit(0);
++    if (nno1 == 0.0f) {
++        fprintf(stderr, "Period range search factor must not be zero.\n");
++        exit(EXIT_FAILURE);
+     }
+ 
+     // Read attenuated frequency channels input data file
+-- 
+2.43.0
+

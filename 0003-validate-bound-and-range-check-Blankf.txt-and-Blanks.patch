@@ -1,0 +1,96 @@
+From 3b09178e2410d6c5d681dc81eb321f886dfb4be5 Mon Sep 17 00:00:00 2001
+From: "Claude (review)" <claude@anthropic.com>
+Date: Fri, 11 Sep 2026 12:48:25 +0000
+Subject: [PATCH 3/4] validate: bound and range-check Blankf.txt and Blanks.txt
+
+These two files are hand-edited during an observing session to blank an
+RFI-contaminated channel or section, so they are the most likely place
+for a typo to enter the program. Both bugs here were reachable from a
+typo alone.
+
+The read loop had no bound on its counter, so a file with more than 256
+entries wrote past blaf[256] on the stack. The loop condition was also
+'!= EOF', but fscanf returns 0 on a non-numeric token without consuming
+it, so a stray letter in the file was an infinite loop that filled the
+array with stale values. Both are fixed by bounding the counter and
+testing '== 1'.
+
+Separately, the values read were used directly as an array index:
+
+    compval[blaf[d]][c] = compval[blaf[d]][c] / 100;
+
+with no range check, so 'Blankf.txt' containing 9999 segfaulted, and
+entering 16 when running 16 channels (valid 0..15) read out of bounds.
+Entries are now checked against the actual channel and section counts,
+with an error naming the valid range.
+
+Verified byte-identical: all 37 output files match the baseline.
+---
+ RTL/src/pulsar_det_an_v4.c | 42 ++++++++++++++++++++++++++++++++++----
+ 1 file changed, 38 insertions(+), 4 deletions(-)
+
+diff --git a/RTL/src/pulsar_det_an_v4.c b/RTL/src/pulsar_det_an_v4.c
+index 940d94d..90fc5e0 100644
+--- a/RTL/src/pulsar_det_an_v4.c
++++ b/RTL/src/pulsar_det_an_v4.c
+@@ -166,9 +166,29 @@ int main(int argc, char *argv[]) {
+ 
+     // Read attenuated frequency channels input data file
+     int mf = 0, couf = 0;
+-    int blaf[256];
++    int blaf[MAX_BLANK];
+     files[FPT_BLNKF] = fopen("Blankf.txt", "r");
+-    while (fscanf(files[FPT_BLNKF], "%d", &mf) != EOF) {
++    if (files[FPT_BLNKF] == NULL) {
++        fprintf(stderr, "Can't reopen Blankf.txt: %s\n", strerror(errno));
++        exit(EXIT_FAILURE);
++    }
++    /* "== 1" rather than "!= EOF": on a non-numeric token fscanf returns 0
++       without consuming it, so the old loop spun forever writing past blaf. */
++    while (fscanf(files[FPT_BLNKF], "%d", &mf) == 1) {
++        if (couf >= MAX_BLANK) {
++            fprintf(stderr, "Blankf.txt contains more than %d entries.\n", MAX_BLANK);
++            exit(EXIT_FAILURE);
++        }
++        /* These values are used directly as an array index at the attenuation
++           step, so an out-of-range entry was an out-of-bounds access. With
++           N channels the valid range is 0..N-1, which is easy to get wrong
++           by one when hand-editing the file. */
++        if (mf < 0 || mf >= N) {
++            fprintf(stderr,
++                    "Blankf.txt: channel %d is out of range. Valid channels are 0..%d.\n",
++                    mf, N - 1);
++            exit(EXIT_FAILURE);
++        }
+         blaf[couf] = mf;
+         couf += 1;
+     }
+@@ -180,9 +200,23 @@ int main(int argc, char *argv[]) {
+ 
+     // Read attenuated sections input data file
+     files[FPT_BLNKS] = fopen("Blanks.txt", "r");
++    if (files[FPT_BLNKS] == NULL) {
++        fprintf(stderr, "Can't reopen Blanks.txt: %s\n", strerror(errno));
++        exit(EXIT_FAILURE);
++    }
+     int cous = 0, ms = 0;
+-    int blas[256];
+-    while (fscanf(files[FPT_BLNKS], "%d", &ms) != EOF) {
++    int blas[MAX_BLANK];
++    while (fscanf(files[FPT_BLNKS], "%d", &ms) == 1) {
++        if (cous >= MAX_BLANK) {
++            fprintf(stderr, "Blanks.txt contains more than %d entries.\n", MAX_BLANK);
++            exit(EXIT_FAILURE);
++        }
++        if (ms < 0 || ms >= M) {
++            fprintf(stderr,
++                    "Blanks.txt: section %d is out of range. Valid sections are 0..%d.\n",
++                    ms, M - 1);
++            exit(EXIT_FAILURE);
++        }
+         blas[cous] = ms;
+         cous += 1;
+     }
+-- 
+2.43.0
+

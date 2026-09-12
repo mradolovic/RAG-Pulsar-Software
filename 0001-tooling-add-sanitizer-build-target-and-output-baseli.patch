@@ -1,0 +1,263 @@
+From 97f62fe099106b720d5a2fe9439e5d0985795fb1 Mon Sep 17 00:00:00 2001
+From: "Claude (review)" <claude@anthropic.com>
+Date: Fri, 11 Sep 2026 12:45:24 +0000
+Subject: [PATCH 1/4] tooling: add sanitizer build target and output-baseline
+ scripts
+
+Adds the infrastructure needed to prove that later changes are
+behaviour-preserving, before making any of them.
+
+- make asan: builds with AddressSanitizer and UndefinedBehaviorSanitizer.
+  This is what catches out-of-bounds access before it becomes a wrong
+  number in an output file rather than a crash.
+
+- scripts/capture_baseline.sh: runs pulsar_det_an and snapshots all of
+  its output files along with the exact parameters and input hash.
+
+- scripts/compare_outputs.sh: re-runs with those parameters and diffs
+  every output file against the baseline. Exit 0 means byte-identical.
+
+The baseline records current behaviour, not verified science. Its value
+is that any unintended change to a result shows up immediately.
+---
+ RTL/Makefile                |  24 ++++++++-
+ scripts/capture_baseline.sh |  77 ++++++++++++++++++++++++++
+ scripts/compare_outputs.sh  | 104 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 204 insertions(+), 1 deletion(-)
+ create mode 100755 scripts/capture_baseline.sh
+ create mode 100755 scripts/compare_outputs.sh
+
+diff --git a/RTL/Makefile b/RTL/Makefile
+index b3c7bcf..7d07c2b 100644
+--- a/RTL/Makefile
++++ b/RTL/Makefile
+@@ -101,10 +101,32 @@ $(BIN_DIR)/RTLChannel4bin$(EXT): $(SRC_DIR)/RTLChannel4bin.c
+ $(BIN_DIR)/pulsar_det_an_v4$(EXT) : $(BIN_DIR)/pulsar_det_an_v4.o $(NUMERICS) $(IO)
+ 	$(CC) $^ -o $@ $(LDFLAGS)
+ ####################################################################################################
+-.PHONY: all clean
++.PHONY: all clean asan
+ 
+ all: $(BIN_DIR) $(NUMERICS) $(IO) $(TARGETS)
+ 
++####################################################################################################
++## Sanitizer build.
++##
++## Use this whenever the analysis code changes, and before trying an untested
++## parameter combination:
++##
++##     make clean && make asan
++##
++## Then run the binary as usual. AddressSanitizer aborts with a stack trace on
++## any out-of-bounds access, and UndefinedBehaviorSanitizer reports undefined
++## operations such as out-of-range casts. Both are silent when nothing is wrong,
++## so a clean run means a clean run. Expect roughly 2-3x slower execution, so
++## test with a short observation rather than a full one.
++##
++## Note: -march=native is deliberately omitted here. It is also worth knowing
++## that the normal build uses it, which means RTL/bin binaries are tied to the
++## machine that compiled them and must not be copied between machines.
++asan: CFLAGS  = -O1 -g3 -D_FILE_OFFSET_BITS=64 -Wall -Wextra -Wpedantic \
++                -fsanitize=address,undefined -fno-omit-frame-pointer
++asan: LDFLAGS = -lm -fsanitize=address,undefined
++asan: all
++
+ $(BIN_DIR):
+ 	$(MKDIR)
+ 
+diff --git a/scripts/capture_baseline.sh b/scripts/capture_baseline.sh
+new file mode 100755
+index 0000000..cbccfb4
+--- /dev/null
++++ b/scripts/capture_baseline.sh
+@@ -0,0 +1,77 @@
++#!/usr/bin/env bash
++# Capture a behavioural baseline of pulsar_det_an's output files.
++#
++# This does NOT assert the science is correct. It records exactly what the
++# current binary produces, so that later changes can be proven not to alter
++# the output. Run it once on the unmodified code, keep the directory, then
++# use compare_outputs.sh after every change.
++#
++# Usage:
++#   scripts/capture_baseline.sh <baseline-dir> <data.bin> [params...]
++#
++# Example (the parameters from the header comment of pulsar_det_an_v4.c):
++#   scripts/capture_baseline.sh baseline/run1 obs.bin \
++#       16 1 714.47415 128 1024 6.5 -26.7 -1.3 6 1 2.4 422 50 0 17
++
++set -euo pipefail
++
++if [ "$#" -lt 3 ]; then
++    sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
++    exit 1
++fi
++
++BASELINE_DIR=$1; shift
++DATA_FILE=$1; shift
++
++REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
++BIN=$REPO_ROOT/RTL/bin/pulsar_det_an_v4.out
++
++if [ ! -x "$BIN" ]; then
++    echo "error: $BIN not built. Run 'make all' in RTL/ first." >&2
++    exit 1
++fi
++if [ ! -f "$DATA_FILE" ]; then
++    echo "error: data file '$DATA_FILE' not found" >&2
++    exit 1
++fi
++
++DATA_FILE=$(cd "$(dirname "$DATA_FILE")" && pwd)/$(basename "$DATA_FILE")
++
++rm -rf "$BASELINE_DIR"
++mkdir -p "$BASELINE_DIR"
++BASELINE_DIR=$(cd "$BASELINE_DIR" && pwd)
++
++# pulsar_det_an writes every output file relative to the working directory,
++# and needs the two attenuation files present there.
++for blank in Blankf.txt Blanks.txt; do
++    if [ -f "$REPO_ROOT/RTL/bin/$blank" ]; then
++        cp "$REPO_ROOT/RTL/bin/$blank" "$BASELINE_DIR/"
++    else
++        : > "$BASELINE_DIR/$blank"
++    fi
++done
++
++# Record exactly how this baseline was produced, so it can be reproduced.
++{
++    echo "# captured $(date -u +%Y-%m-%dT%H:%M:%SZ)"
++    echo "# commit  $(cd "$REPO_ROOT" && git rev-parse HEAD 2>/dev/null || echo unknown)"
++    echo "# data    $DATA_FILE"
++    echo "# sha256  $(sha256sum "$DATA_FILE" | cut -d' ' -f1)"
++    echo "$*"
++} > "$BASELINE_DIR/RUN_PARAMS.txt"
++
++echo "Running pulsar_det_an in $BASELINE_DIR ..."
++( cd "$BASELINE_DIR" && "$BIN" "$DATA_FILE" "$@" > stdout.log 2> stderr.log )
++status=$?
++
++echo "exit status: $status" >> "$BASELINE_DIR/RUN_PARAMS.txt"
++
++# cutdat.bin is a verbatim copy of the input range. It is large and its
++# content is trivially determined by the input, so hash it instead of keeping it.
++if [ -f "$BASELINE_DIR/cutdat.bin" ]; then
++    sha256sum "$BASELINE_DIR/cutdat.bin" | cut -d' ' -f1 > "$BASELINE_DIR/cutdat.bin.sha256"
++    rm -f "$BASELINE_DIR/cutdat.bin"
++fi
++
++echo "Baseline written to $BASELINE_DIR"
++ls -1 "$BASELINE_DIR" | sed 's/^/  /'
+diff --git a/scripts/compare_outputs.sh b/scripts/compare_outputs.sh
+new file mode 100755
+index 0000000..a0f846d
+--- /dev/null
++++ b/scripts/compare_outputs.sh
+@@ -0,0 +1,104 @@
++#!/usr/bin/env bash
++# Re-run pulsar_det_an with the parameters recorded in a baseline directory
++# and compare every output file against it.
++#
++# Exit status 0 means the change is behaviour-preserving: every output file is
++# byte-identical. Any difference is reported and the script exits non-zero.
++#
++# Usage:
++#   scripts/compare_outputs.sh <baseline-dir> [work-dir]
++
++set -uo pipefail
++
++if [ "$#" -lt 1 ]; then
++    sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
++    exit 1
++fi
++
++BASELINE_DIR=$(cd "$1" && pwd)
++WORK_DIR=${2:-$(mktemp -d)}
++
++REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
++BIN=$REPO_ROOT/RTL/bin/pulsar_det_an_v4.out
++
++if [ ! -x "$BIN" ]; then
++    echo "error: $BIN not built. Run 'make all' in RTL/ first." >&2
++    exit 1
++fi
++if [ ! -f "$BASELINE_DIR/RUN_PARAMS.txt" ]; then
++    echo "error: $BASELINE_DIR has no RUN_PARAMS.txt - not a baseline directory" >&2
++    exit 1
++fi
++
++DATA_FILE=$(grep '^# data' "$BASELINE_DIR/RUN_PARAMS.txt" | sed 's/^# data *//')
++PARAMS=$(grep -v '^#' "$BASELINE_DIR/RUN_PARAMS.txt" | grep -v '^exit status' | head -1)
++
++if [ ! -f "$DATA_FILE" ]; then
++    echo "error: baseline data file '$DATA_FILE' no longer exists" >&2
++    exit 1
++fi
++
++mkdir -p "$WORK_DIR"
++WORK_DIR=$(cd "$WORK_DIR" && pwd)
++rm -f "$WORK_DIR"/*.txt "$WORK_DIR"/*.bin "$WORK_DIR"/*.log
++
++for blank in Blankf.txt Blanks.txt; do
++    cp "$BASELINE_DIR/$blank" "$WORK_DIR/" 2>/dev/null || : > "$WORK_DIR/$blank"
++done
++
++echo "Re-running with: $PARAMS"
++# shellcheck disable=SC2086
++( cd "$WORK_DIR" && "$BIN" "$DATA_FILE" $PARAMS > stdout.log 2> stderr.log )
++new_status=$?
++
++if [ -f "$WORK_DIR/cutdat.bin" ]; then
++    sha256sum "$WORK_DIR/cutdat.bin" | cut -d' ' -f1 > "$WORK_DIR/cutdat.bin.sha256"
++    rm -f "$WORK_DIR/cutdat.bin"
++fi
++
++differences=0
++
++# stdout is compared separately and non-fatally: added diagnostics are expected
++# and welcome, whereas a changed data file is not.
++for f in "$BASELINE_DIR"/*; do
++    name=$(basename "$f")
++    case "$name" in
++        RUN_PARAMS.txt|stdout.log|stderr.log|Blankf.txt|Blanks.txt) continue ;;
++    esac
++    if [ ! -f "$WORK_DIR/$name" ]; then
++        echo "MISSING: $name was produced by the baseline but not by this build"
++        differences=$((differences + 1))
++    elif ! cmp -s "$f" "$WORK_DIR/$name"; then
++        echo "CHANGED: $name"
++        differences=$((differences + 1))
++    fi
++done
++
++for f in "$WORK_DIR"/*; do
++    name=$(basename "$f")
++    case "$name" in
++        RUN_PARAMS.txt|stdout.log|stderr.log|Blankf.txt|Blanks.txt) continue ;;
++    esac
++    if [ ! -f "$BASELINE_DIR/$name" ]; then
++        echo "NEW: $name was not produced by the baseline"
++        differences=$((differences + 1))
++    fi
++done
++
++echo
++if ! cmp -s "$BASELINE_DIR/stdout.log" "$WORK_DIR/stdout.log"; then
++    echo "note: console output differs (this is fine for added diagnostics):"
++    diff "$BASELINE_DIR/stdout.log" "$WORK_DIR/stdout.log" | head -20 | sed 's/^/  /'
++    echo
++fi
++
++if [ "$differences" -eq 0 ]; then
++    echo "PASS - all $(ls -1 "$BASELINE_DIR" | wc -l) output files are byte-identical."
++    echo "       work dir: $WORK_DIR"
++    exit 0
++else
++    echo "FAIL - $differences output file(s) differ."
++    echo "       baseline: $BASELINE_DIR"
++    echo "       new:      $WORK_DIR"
++    exit 1
++fi
+-- 
+2.43.0
+
